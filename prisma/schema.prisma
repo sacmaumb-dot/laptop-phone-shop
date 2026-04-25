@@ -1,0 +1,189 @@
+// Schema for Laptop & Phone Shop Management
+// Modules: Sales (POS), Repair/Service, Inventory, Customers, Users
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USERS / AUTH
+// ============================================
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("staff") // admin | staff | technician
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales          Sale[]
+  serviceTickets ServiceTicket[] @relation("CreatedBy")
+  serviceAssigned ServiceTicket[] @relation("AssignedTo")
+}
+
+// ============================================
+// CUSTOMERS
+// ============================================
+model Customer {
+  id        String   @id @default(cuid())
+  code      String   @unique // KH001
+  name      String
+  phone     String   @unique
+  email     String?
+  address   String?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales          Sale[]
+  serviceTickets ServiceTicket[]
+}
+
+// ============================================
+// CATEGORIES & PRODUCTS
+// ============================================
+model Category {
+  id       String    @id @default(cuid())
+  name     String
+  slug     String    @unique
+  type     String // laptop | phone | accessory | service
+  products Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  brand       String? // Apple, Dell, Samsung...
+  description String?
+  imageUrl    String?
+  price       Float    @default(0) // selling price
+  costPrice   Float    @default(0)
+  stock       Int      @default(0) // running stock count
+  warranty    Int      @default(0) // months
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  saleItems    SaleItem[]
+  serviceItems ServiceItem[]
+}
+
+// ============================================
+// SALES (POS)
+// ============================================
+model Sale {
+  id            String   @id @default(cuid())
+  code          String   @unique // HD20240001
+  subtotal      Float    @default(0)
+  discount      Float    @default(0)
+  tax           Float    @default(0)
+  total         Float    @default(0)
+  paid          Float    @default(0)
+  paymentMethod String   @default("cash") // cash | card | transfer | wallet
+  status        String   @default("paid") // paid | pending | cancelled
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  items SaleItem[]
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  quantity  Int     @default(1)
+  unitPrice Float
+  discount  Float   @default(0)
+  subtotal  Float
+  imei      String? // IMEI / serial cho phone/laptop bán ra
+  note      String?
+
+  saleId String
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+// ============================================
+// SERVICE / REPAIR
+// ============================================
+model ServiceTicket {
+  id            String    @id @default(cuid())
+  code          String    @unique // SC20240001
+  deviceType    String // laptop | phone | tablet | other
+  deviceBrand   String? // Apple, Dell...
+  deviceModel   String? // MacBook Pro 14, iPhone 15...
+  imei          String? // IMEI / serial
+  accessories   String? // pin, sạc, sim... đi kèm
+  appearance    String? // trầy xước, móp...
+  problem       String // Mô tả lỗi từ khách
+  diagnosis     String? // Chẩn đoán của KTV
+  solution      String? // Giải pháp / linh kiện thay
+  estimatedCost Float     @default(0)
+  finalCost     Float     @default(0)
+  deposit       Float     @default(0) // cọc
+  paid          Float     @default(0)
+  warranty      Int       @default(0) // months on repair
+  status        String    @default("received") // received | diagnosing | waiting_parts | repairing | completed | delivered | cancelled
+  receivedAt    DateTime  @default(now())
+  promisedAt    DateTime? // hẹn trả
+  completedAt   DateTime?
+  deliveredAt   DateTime?
+  note          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  items   ServiceItem[]
+  history ServiceStatusHistory[]
+}
+
+model ServiceItem {
+  id          String @id @default(cuid())
+  description String // Tên linh kiện / dịch vụ
+  quantity    Int    @default(1)
+  unitPrice   Float
+  subtotal    Float
+
+  ticketId String
+  ticket   ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+}
+
+model ServiceStatusHistory {
+  id        String   @id @default(cuid())
+  status    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  ticketId String
+  ticket   ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}

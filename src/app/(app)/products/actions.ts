@@ -1,0 +1,44 @@
+"use server";
+
+import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+
+export async function createProduct(data: {
+  sku: string;
+  name: string;
+  brand?: string;
+  categoryId: string;
+  price: number;
+  costPrice: number;
+  stock: number;
+  warranty: number;
+  description?: string;
+}) {
+  try {
+    await requireSession();
+    await prisma.product.create({
+      data: {
+        sku: data.sku,
+        name: data.name,
+        brand: data.brand || null,
+        categoryId: data.categoryId,
+        price: data.price,
+        costPrice: data.costPrice,
+        stock: data.stock,
+        warranty: data.warranty,
+        description: data.description || null,
+      },
+    });
+    revalidatePath("/products");
+    revalidatePath("/pos");
+    return { ok: true as const };
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "P2002") {
+      return { ok: false as const, error: "SKU đã tồn tại" };
+    }
+    console.error(e);
+    return { ok: false as const, error: "Có lỗi xảy ra" };
+  }
+}
