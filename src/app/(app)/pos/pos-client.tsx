@@ -7,13 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +28,6 @@ import {
   ShoppingCart,
   Trash2,
   Receipt,
-  UserPlus,
   Loader2,
   Smartphone,
   Laptop,
@@ -44,6 +37,10 @@ import {
 import { formatVND } from "@/lib/format";
 import { toast } from "sonner";
 import { createSale } from "./actions";
+import {
+  CustomerPhoneField,
+  type CustomerSelection,
+} from "@/components/customer-phone-field";
 
 type Product = {
   id: string;
@@ -75,6 +72,11 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   service: <Wrench className="size-4" />,
 };
 
+const PAYMENT_OPTIONS = [
+  { value: "cash", label: "Tiền mặt" },
+  { value: "transfer", label: "Chuyển khoản" },
+];
+
 export function PosClient({
   products,
   categories,
@@ -88,10 +90,8 @@ export function PosClient({
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerId, setCustomerId] = useState<string>("walkin");
-  const setCustomerSel = (v: string | null) => setCustomerId(v ?? "walkin");
+  const [customer, setCustomer] = useState<CustomerSelection>({ mode: "none" });
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
-  const setPaymentSel = (v: string | null) => setPaymentMethod(v ?? "cash");
   const [discount, setDiscount] = useState<number>(0);
   const [note, setNote] = useState("");
   const [openCheckout, setOpenCheckout] = useState(false);
@@ -120,10 +120,7 @@ export function PosClient({
       const idx = curr.findIndex((c) => c.productId === p.id);
       if (idx >= 0) {
         const next = [...curr];
-        if (
-          next[idx].quantity >= p.stock &&
-          p.categoryType !== "service"
-        ) {
+        if (next[idx].quantity >= p.stock && p.categoryType !== "service") {
           toast.error("Vượt quá số lượng tồn kho");
           return curr;
         }
@@ -175,14 +172,29 @@ export function PosClient({
       toast.error("Giỏ hàng trống");
       return;
     }
+    if (customer.mode === "new" && !customer.name.trim()) {
+      toast.error("Vui lòng nhập tên khách hàng mới");
+      return;
+    }
     setOpenCheckout(true);
   }
 
-  function confirmCheckout() {
+  function confirmCheckout(opts: { print: boolean }) {
     startTransition(async () => {
+      const customerPayload =
+        customer.mode === "existing"
+          ? { customerId: customer.customer.id }
+          : customer.mode === "new"
+            ? {
+                newCustomer: {
+                  name: customer.name.trim(),
+                  phone: customer.phone.trim(),
+                },
+              }
+            : {};
       const res = await createSale({
         items: cart,
-        customerId: customerId === "walkin" ? null : customerId,
+        ...customerPayload,
         paymentMethod,
         discount,
         note,
@@ -192,11 +204,15 @@ export function PosClient({
         setCart([]);
         setDiscount(0);
         setNote("");
-        setCustomerId("walkin");
+        setCustomer({ mode: "none" });
         setOpenCheckout(false);
         setOpenCart(false);
         router.refresh();
-        router.push(`/sales/${res.id}`);
+        if (opts.print) {
+          router.push(`/sales/${res.id}?print=1`);
+        } else {
+          router.push(`/sales/${res.id}`);
+        }
       } else {
         toast.error(res.error || "Có lỗi xảy ra");
       }
@@ -204,17 +220,16 @@ export function PosClient({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 -mx-2 sm:-mx-0">
-      {/* Product catalog */}
-      <div className="space-y-4 px-2 sm:px-0">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
+      <div className="space-y-4 min-w-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Bán hàng (POS)</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-bold tracking-tight">Bán hàng</h1>
+          <p className="text-xs text-muted-foreground">
             Chọn sản phẩm để thêm vào giỏ hàng.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
@@ -288,7 +303,6 @@ export function PosClient({
         </div>
       </div>
 
-      {/* Cart - desktop sidebar */}
       <div className="hidden lg:block">
         <CartPanel
           cart={cart}
@@ -300,21 +314,25 @@ export function PosClient({
           updateImei={updateImei}
           removeItem={removeItem}
           customers={customers}
-          customerId={customerId}
-          setCustomerId={setCustomerSel}
+          customer={customer}
+          setCustomer={setCustomer}
           onCheckout={handleCheckout}
         />
       </div>
 
-      {/* Cart - mobile sheet */}
       <div className="lg:hidden fixed bottom-4 right-4 z-30">
         <Sheet open={openCart} onOpenChange={setOpenCart}>
           <SheetTrigger
-            render={<Button size="lg" className="rounded-full shadow-lg h-14 px-6" />}
+            render={
+              <Button size="lg" className="rounded-full shadow-lg h-14 px-6" />
+            }
           >
             <ShoppingCart className="size-5" />
             <span className="ml-2 font-semibold">{itemCount}</span>
-            <Separator orientation="vertical" className="mx-2 h-5 bg-primary-foreground/30" />
+            <Separator
+              orientation="vertical"
+              className="mx-2 h-5 bg-primary-foreground/30"
+            />
             <span>{formatVND(total)}</span>
           </SheetTrigger>
           <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
@@ -328,8 +346,8 @@ export function PosClient({
               updateImei={updateImei}
               removeItem={removeItem}
               customers={customers}
-              customerId={customerId}
-              setCustomerId={setCustomerSel}
+              customer={customer}
+              setCustomer={setCustomer}
               onCheckout={handleCheckout}
               className="border-0 shadow-none rounded-none h-full"
             />
@@ -337,7 +355,6 @@ export function PosClient({
         </Sheet>
       </div>
 
-      {/* Checkout dialog */}
       <Dialog open={openCheckout} onOpenChange={setOpenCheckout}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -373,17 +390,12 @@ export function PosClient({
 
             <div className="space-y-2">
               <Label>Phương thức thanh toán</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentSel}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Tiền mặt</SelectItem>
-                  <SelectItem value="card">Thẻ ngân hàng</SelectItem>
-                  <SelectItem value="transfer">Chuyển khoản</SelectItem>
-                  <SelectItem value="wallet">Ví điện tử</SelectItem>
-                </SelectContent>
-              </Select>
+              <SelectField
+                value={paymentMethod}
+                onValueChange={setPaymentMethod}
+                options={PAYMENT_OPTIONS}
+                className="w-full"
+              />
             </div>
 
             <div className="space-y-2">
@@ -396,14 +408,25 @@ export function PosClient({
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setOpenCheckout(false)}>
               Huỷ
             </Button>
-            <Button onClick={confirmCheckout} disabled={pending}>
+            <Button
+              variant="outline"
+              onClick={() => confirmCheckout({ print: false })}
+              disabled={pending}
+            >
+              {pending && <Loader2 className="size-4 animate-spin" />}
+              Lưu
+            </Button>
+            <Button
+              onClick={() => confirmCheckout({ print: true })}
+              disabled={pending}
+            >
               {pending && <Loader2 className="size-4 animate-spin" />}
               <Receipt className="size-4" />
-              Tạo hoá đơn
+              Lưu & In bill
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -422,8 +445,8 @@ function CartPanel({
   updateImei,
   removeItem,
   customers,
-  customerId,
-  setCustomerId,
+  customer,
+  setCustomer,
   onCheckout,
   className = "",
 }: {
@@ -436,48 +459,34 @@ function CartPanel({
   updateImei: (productId: string, imei: string) => void;
   removeItem: (productId: string) => void;
   customers: Customer[];
-  customerId: string;
-  setCustomerId: (v: string | null) => void;
+  customer: CustomerSelection;
+  setCustomer: (s: CustomerSelection) => void;
   onCheckout: () => void;
   className?: string;
 }) {
   return (
     <Card
-      className={`sticky top-20 flex flex-col max-h-[calc(100vh-6rem)] ${className}`}
+      className={`sticky top-20 flex flex-col max-h-[calc(100vh-6rem)] gap-0 p-0 ${className}`}
     >
-      <div className="p-4 border-b flex items-center gap-2">
+      <div className="p-3 border-b flex items-center gap-2">
         <ShoppingCart className="size-4" />
-        <span className="font-semibold">Giỏ hàng</span>
+        <span className="font-semibold text-sm">Giỏ hàng</span>
         <Badge variant="secondary" className="ml-auto">
           {cart.length} mặt hàng
         </Badge>
       </div>
 
-      <div className="p-4 border-b space-y-2">
-        <Label className="text-xs">Khách hàng</Label>
-        <Select value={customerId} onValueChange={setCustomerId}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="walkin">
-              <span className="flex items-center gap-2">
-                <UserPlus className="size-3.5" />
-                Khách lẻ
-              </span>
-            </SelectItem>
-            {customers.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name} · {c.phone}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="p-3 border-b">
+        <CustomerPhoneField
+          customers={customers}
+          value={customer}
+          onChange={setCustomer}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
         {cart.length === 0 ? (
-          <div className="text-center text-sm text-muted-foreground py-12 px-4">
+          <div className="text-center text-sm text-muted-foreground py-10 px-4">
             <ShoppingCart className="size-8 mx-auto mb-3 text-muted-foreground/50" />
             Chưa có sản phẩm nào. <br />
             Bấm vào sản phẩm để thêm vào giỏ.
@@ -486,7 +495,7 @@ function CartPanel({
           cart.map((item) => (
             <div
               key={item.productId}
-              className="rounded-lg border p-3 space-y-2 bg-card"
+              className="rounded-lg border p-2.5 space-y-2 bg-card"
             >
               <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
@@ -510,7 +519,7 @@ function CartPanel({
                 placeholder="IMEI / Serial (nếu có)"
                 value={item.imei || ""}
                 onChange={(e) => updateImei(item.productId, e.target.value)}
-                className="h-8 text-xs"
+                className="h-7 text-xs"
               />
 
               <div className="flex items-center justify-between">
@@ -520,9 +529,7 @@ function CartPanel({
                     variant="ghost"
                     size="icon"
                     className="size-7"
-                    onClick={() =>
-                      updateQty(item.productId, item.quantity - 1)
-                    }
+                    onClick={() => updateQty(item.productId, item.quantity - 1)}
                   >
                     <Minus className="size-3" />
                   </Button>
@@ -540,9 +547,7 @@ function CartPanel({
                     variant="ghost"
                     size="icon"
                     className="size-7"
-                    onClick={() =>
-                      updateQty(item.productId, item.quantity + 1)
-                    }
+                    onClick={() => updateQty(item.productId, item.quantity + 1)}
                   >
                     <Plus className="size-3" />
                   </Button>
@@ -556,8 +561,8 @@ function CartPanel({
         )}
       </div>
 
-      <div className="border-t p-4 space-y-3">
-        <div className="space-y-2">
+      <div className="border-t p-3 space-y-3">
+        <div className="space-y-1.5">
           <Label className="text-xs">Giảm giá</Label>
           <Input
             type="number"
@@ -565,9 +570,10 @@ function CartPanel({
             value={discount}
             onChange={(e) => setDiscount(Number(e.target.value) || 0)}
             placeholder="0"
+            className="h-8"
           />
         </div>
-        <div className="space-y-1.5 text-sm">
+        <div className="space-y-1 text-sm">
           <div className="flex justify-between text-muted-foreground">
             <span>Tạm tính</span>
             <span>{formatVND(subtotal)}</span>
@@ -576,8 +582,8 @@ function CartPanel({
             <span>Giảm giá</span>
             <span className="text-destructive">-{formatVND(discount)}</span>
           </div>
-          <Separator />
-          <div className="flex justify-between text-base font-bold pt-1">
+          <Separator className="my-1" />
+          <div className="flex justify-between text-base font-bold">
             <span>Tổng</span>
             <span className="text-primary">{formatVND(total)}</span>
           </div>

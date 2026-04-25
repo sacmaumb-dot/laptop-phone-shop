@@ -13,13 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createUser } from "./actions";
@@ -101,16 +95,16 @@ export function NewUserDialog() {
           </div>
           <div className="space-y-2">
             <Label>Vai trò</Label>
-            <Select value={form.role} onValueChange={(v) => set("role", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="staff">Nhân viên bán hàng</SelectItem>
-                <SelectItem value="technician">Kỹ thuật viên</SelectItem>
-                <SelectItem value="admin">Quản trị viên</SelectItem>
-              </SelectContent>
-            </Select>
+            <SelectField
+              value={form.role}
+              onValueChange={(v) => set("role", v)}
+              options={[
+                { value: "staff", label: "Nhân viên bán hàng" },
+                { value: "technician", label: "Kỹ thuật viên" },
+                { value: "admin", label: "Quản trị viên" },
+              ]}
+              className="w-full"
+            />
           </div>
         </div>
         <DialogFooter>

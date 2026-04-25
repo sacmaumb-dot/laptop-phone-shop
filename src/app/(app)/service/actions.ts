@@ -4,83 +4,93 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+type CustomerInput =
+  | { id: string }
+  | { name: string; phone: string };
+
 export async function createServiceTicket(input: {
-  customerMode: "existing" | "new";
-  customerId?: string;
-  customerName?: string;
-  customerPhone?: string;
-  customerEmail?: string;
-  deviceType: string;
-  deviceBrand?: string;
-  deviceModel?: string;
-  imei?: string;
-  accessories?: string;
-  appearance?: string;
-  problem: string;
-  diagnosis?: string;
+  customer: CustomerInput;
+  device: {
+    type: string;
+    brand: string | null;
+    model: string | null;
+    imei: string | null;
+    accessories: string | null;
+    appearance: string | null;
+    problem: string;
+  };
+  items: { description: string; quantity: number; unitPrice: number }[];
   estimatedCost: number;
   deposit: number;
-  assignedToId?: string;
-  promisedAt?: string | null;
-  note?: string;
+  assignedToId: string | null;
+  promisedAt: string | null;
+  note: string | null;
 }) {
   try {
     const session = await requireSession();
 
-    let customerId = input.customerId || null;
-    if (input.customerMode === "new") {
-      // upsert by phone
-      const phone = (input.customerPhone || "").trim();
-      const existing = phone
-        ? await prisma.customer.findUnique({ where: { phone } })
-        : null;
+    let customerId: string;
+    if ("id" in input.customer) {
+      customerId = input.customer.id;
+    } else {
+      const phone = input.customer.phone.trim();
+      const name = input.customer.name.trim();
+      if (!phone) {
+        return { ok: false as const, error: "SĐT khách hàng không hợp lệ" };
+      }
+      const existing = await prisma.customer.findFirst({ where: { phone } });
       if (existing) {
         customerId = existing.id;
       } else {
-        const count = await prisma.customer.count();
-        const code = `KH${String(count + 1).padStart(5, "0")}`;
-        const c = await prisma.customer.create({
+        const allCust = await prisma.customer.findMany({ select: { code: true } });
+        const maxCustNum = allCust.reduce((m, c) => {
+          const n = parseInt(c.code.replace(/\D/g, "")) || 0;
+          return n > m ? n : m;
+        }, 0);
+        const created = await prisma.customer.create({
           data: {
-            code,
-            name: input.customerName || "Khách hàng",
+            code: `KH${String(maxCustNum + 1).padStart(5, "0")}`,
+            name,
             phone,
-            email: input.customerEmail || null,
           },
         });
-        customerId = c.id;
+        customerId = created.id;
       }
     }
 
-    if (!customerId) {
-      return { ok: false as const, error: "Khách hàng không hợp lệ" };
-    }
-
-    const last = await prisma.serviceTicket.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: { code: true },
-    });
-    const nextNum = last ? parseInt(last.code.replace(/\D/g, "")) + 1 : 1;
-    const code = `SC${String(nextNum).padStart(5, "0")}`;
+    const allTickets = await prisma.serviceTicket.findMany({ select: { code: true } });
+    const maxNum = allTickets.reduce((m, t) => {
+      const n = parseInt(t.code.replace(/\D/g, "")) || 0;
+      return n > m ? n : m;
+    }, 0);
+    const code = `SC${String(maxNum + 1).padStart(5, "0")}`;
 
     const ticket = await prisma.serviceTicket.create({
       data: {
         code,
         customerId,
         createdById: session.id,
-        assignedToId: input.assignedToId || null,
-        deviceType: input.deviceType,
-        deviceBrand: input.deviceBrand || null,
-        deviceModel: input.deviceModel || null,
-        imei: input.imei || null,
-        accessories: input.accessories || null,
-        appearance: input.appearance || null,
-        problem: input.problem,
-        diagnosis: input.diagnosis || null,
+        assignedToId: input.assignedToId,
+        deviceType: input.device.type,
+        deviceBrand: input.device.brand,
+        deviceModel: input.device.model,
+        imei: input.device.imei,
+        accessories: input.device.accessories,
+        appearance: input.device.appearance,
+        problem: input.device.problem,
         estimatedCost: input.estimatedCost,
         deposit: input.deposit,
         promisedAt: input.promisedAt ? new Date(input.promisedAt) : null,
-        note: input.note || null,
+        note: input.note,
         status: "received",
+        items: {
+          create: input.items.map((i) => ({
+            description: i.description,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            subtotal: i.unitPrice * i.quantity,
+          })),
+        },
         history: {
           create: {
             status: "received",
@@ -161,5 +171,96 @@ export async function updateServiceTicket(
   } catch (e) {
     console.error(e);
     return { ok: false as const, error: "Cập nhật thất bại" };
+  }
+}
+
+type ReturnItemInput = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  productId?: string | null;
+};
+
+export async function deliverService(input: {
+  ticketId: string;
+  extraItems: ReturnItemInput[];
+  paymentMethod: string;
+  paid: number;
+  warranty: number;
+  solution: string;
+  note: string;
+}) {
+  try {
+    await requireSession();
+    const ticket = await prisma.serviceTicket.findUnique({
+      where: { id: input.ticketId },
+      include: { items: true },
+    });
+    if (!ticket) {
+      return { ok: false as const, error: "Phiếu không tồn tại" };
+    }
+    if (ticket.status === "delivered") {
+      return { ok: false as const, error: "Phiếu đã trả máy" };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const it of input.extraItems) {
+        await tx.serviceItem.create({
+          data: {
+            ticketId: ticket.id,
+            description: it.description,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            subtotal: it.unitPrice * it.quantity,
+            productId: it.productId || null,
+          },
+        });
+        if (it.productId) {
+          const p = await tx.product.findUnique({ where: { id: it.productId } });
+          if (p) {
+            await tx.product.update({
+              where: { id: it.productId },
+              data: { stock: { decrement: it.quantity } },
+            });
+          }
+        }
+      }
+
+      const allItems = await tx.serviceItem.findMany({
+        where: { ticketId: ticket.id },
+      });
+      const finalCost = allItems.reduce((s, i) => s + i.subtotal, 0);
+
+      await tx.serviceTicket.update({
+        where: { id: ticket.id },
+        data: {
+          status: "delivered",
+          finalCost,
+          paid: input.paid,
+          paymentMethod: input.paymentMethod,
+          warranty: input.warranty,
+          solution: input.solution || ticket.solution,
+          note: input.note || ticket.note,
+          completedAt: ticket.completedAt || new Date(),
+          deliveredAt: new Date(),
+        },
+      });
+
+      await tx.serviceStatusHistory.create({
+        data: {
+          ticketId: ticket.id,
+          status: "delivered",
+          note: "Trả máy & thanh toán",
+        },
+      });
+    });
+
+    revalidatePath(`/service/${input.ticketId}`);
+    revalidatePath("/service");
+    revalidatePath("/");
+    return { ok: true as const };
+  } catch (e) {
+    console.error(e);
+    return { ok: false as const, error: "Trả máy thất bại" };
   }
 }

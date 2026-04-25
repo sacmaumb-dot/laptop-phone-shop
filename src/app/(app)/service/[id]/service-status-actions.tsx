@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { updateServiceStatus } from "../actions";
@@ -26,7 +20,6 @@ export function ServiceStatusActions({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<string>(currentStatus);
-  const setStatusSel = (v: string | null) => setStatus(v ?? currentStatus);
   const [note, setNote] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -51,18 +44,15 @@ export function ServiceStatusActions({
     <div className="space-y-3">
       <div className="space-y-2">
         <Label className="text-xs">Trạng thái mới</Label>
-        <Select value={status} onValueChange={setStatusSel}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SERVICE_STATUSES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SelectField
+          value={status}
+          onValueChange={setStatus}
+          options={SERVICE_STATUSES.map((s) => ({
+            value: s.value,
+            label: s.label,
+          }))}
+          className="w-full"
+        />
       </div>
       <div className="space-y-2">
         <Label className="text-xs">Ghi chú</Label>

@@ -142,6 +142,7 @@ model ServiceTicket {
   deposit       Float     @default(0) // cọc
   paid          Float     @default(0)
   warranty      Int       @default(0) // months on repair
+  paymentMethod String?   // cash | transfer
   status        String    @default("received") // received | diagnosing | waiting_parts | repairing | completed | delivered | cancelled
   receivedAt    DateTime  @default(now())
   promisedAt    DateTime? // hẹn trả

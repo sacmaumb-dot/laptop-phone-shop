@@ -14,13 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createProduct } from "./actions";
@@ -110,21 +104,13 @@ export function NewProductDialog({
             </div>
             <div className="space-y-2">
               <Label>Danh mục *</Label>
-              <Select
+              <SelectField
                 value={form.categoryId}
                 onValueChange={(v) => set("categoryId", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Chọn danh mục"
+                options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                className="w-full"
+              />
             </div>
           </div>
           <div className="space-y-2">

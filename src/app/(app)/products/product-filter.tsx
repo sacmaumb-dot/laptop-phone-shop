@@ -3,13 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { Search } from "lucide-react";
 
 export function ProductFilter({
@@ -33,7 +27,7 @@ export function ProductFilter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  function setCat(value: string | null) {
+  function setCat(value: string) {
     const sp = new URLSearchParams(params);
     if (value && value !== "all") sp.set("cat", value);
     else sp.delete("cat");
@@ -51,19 +45,15 @@ export function ProductFilter({
           className="pl-9"
         />
       </div>
-      <Select value={cat} onValueChange={setCat}>
-        <SelectTrigger className="sm:w-56">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Tất cả danh mục</SelectItem>
-          {categories.map((c) => (
-            <SelectItem key={c.id} value={c.type}>
-              {c.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SelectField
+        value={cat}
+        onValueChange={setCat}
+        className="sm:w-56"
+        options={[
+          { value: "all", label: "Tất cả danh mục" },
+          ...categories.map((c) => ({ value: c.type, label: c.name })),
+        ]}
+      />
     </div>
   );
 }

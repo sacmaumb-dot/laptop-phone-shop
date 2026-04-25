@@ -14,7 +14,8 @@ type Item = {
 
 export async function createSale(input: {
   items: Item[];
-  customerId: string | null;
+  customerId?: string;
+  newCustomer?: { name: string; phone: string };
   paymentMethod: string;
   discount: number;
   note: string;
@@ -23,6 +24,33 @@ export async function createSale(input: {
     const session = await requireSession();
     if (input.items.length === 0) {
       return { ok: false as const, error: "Giỏ hàng trống" };
+    }
+
+    let resolvedCustomerId: string | null = input.customerId || null;
+    if (!resolvedCustomerId && input.newCustomer && input.newCustomer.name.trim()) {
+      const phone = input.newCustomer.phone.trim();
+      const name = input.newCustomer.name.trim();
+      if (!phone) {
+        return { ok: false as const, error: "SĐT khách hàng không hợp lệ" };
+      }
+      const existing = await prisma.customer.findFirst({ where: { phone } });
+      if (existing) {
+        resolvedCustomerId = existing.id;
+      } else {
+        const allCust = await prisma.customer.findMany({ select: { code: true } });
+        const maxCustNum = allCust.reduce((m, c) => {
+          const n = parseInt(c.code.replace(/\D/g, "")) || 0;
+          return n > m ? n : m;
+        }, 0);
+        const created = await prisma.customer.create({
+          data: {
+            code: `KH${String(maxCustNum + 1).padStart(5, "0")}`,
+            name,
+            phone,
+          },
+        });
+        resolvedCustomerId = created.id;
+      }
     }
 
     // Validate stock
@@ -49,12 +77,12 @@ export async function createSale(input: {
     const total = Math.max(0, subtotal - (input.discount || 0));
 
     // Generate code
-    const lastSale = await prisma.sale.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: { code: true },
-    });
-    const nextNum = lastSale ? parseInt(lastSale.code.replace(/\D/g, "")) + 1 : 1;
-    const code = `HD${String(nextNum).padStart(5, "0")}`;
+    const allSales = await prisma.sale.findMany({ select: { code: true } });
+    const maxNum = allSales.reduce((m, s) => {
+      const n = parseInt(s.code.replace(/\D/g, "")) || 0;
+      return n > m ? n : m;
+    }, 0);
+    const code = `HD${String(maxNum + 1).padStart(5, "0")}`;
 
     const sale = await prisma.$transaction(async (tx) => {
       const created = await tx.sale.create({
@@ -67,7 +95,7 @@ export async function createSale(input: {
           paymentMethod: input.paymentMethod,
           status: "paid",
           note: input.note || null,
-          customerId: input.customerId || null,
+          customerId: resolvedCustomerId,
           userId: session.id,
           items: {
             create: input.items.map((i) => ({

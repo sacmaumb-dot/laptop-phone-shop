@@ -6,13 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { updateServiceTicket } from "../actions";
@@ -134,21 +128,13 @@ export function ServiceUpdateForm({
         </div>
         <div className="space-y-2">
           <Label>KTV phụ trách</Label>
-          <Select
+          <SelectField
             value={form.assignedToId}
             onValueChange={(v) => set("assignedToId", v)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Chưa phân công" />
-            </SelectTrigger>
-            <SelectContent>
-              {technicians.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Chưa phân công"
+            options={technicians.map((t) => ({ value: t.id, label: t.name }))}
+            className="w-full"
+          />
         </div>
         <div className="space-y-2">
           <Label>Hẹn trả</Label>

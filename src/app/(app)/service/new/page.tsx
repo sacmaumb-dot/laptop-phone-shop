@@ -22,6 +22,7 @@ export default async function NewServicePage() {
       <ServiceForm
         customers={customers.map((c) => ({
           id: c.id,
+          code: c.code,
           name: c.name,
           phone: c.phone,
         }))}

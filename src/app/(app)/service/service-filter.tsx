@@ -2,13 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SERVICE_STATUSES } from "@/components/service-status-badge";
@@ -30,7 +24,7 @@ export function ServiceFilter() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  function setStatus(value: string | null) {
+  function setStatus(value: string) {
     const sp = new URLSearchParams(params);
     if (value && value !== "all") sp.set("status", value);
     else sp.delete("status");
@@ -48,19 +42,15 @@ export function ServiceFilter() {
           className="pl-9"
         />
       </div>
-      <Select value={status} onValueChange={setStatus}>
-        <SelectTrigger className="sm:w-56">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Tất cả trạng thái</SelectItem>
-          {SERVICE_STATUSES.map((s) => (
-            <SelectItem key={s.value} value={s.value}>
-              {s.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SelectField
+        value={status}
+        onValueChange={setStatus}
+        className="sm:w-56"
+        options={[
+          { value: "all", label: "Tất cả trạng thái" },
+          ...SERVICE_STATUSES.map((s) => ({ value: s.value, label: s.label })),
+        ]}
+      />
     </div>
   );
 }
