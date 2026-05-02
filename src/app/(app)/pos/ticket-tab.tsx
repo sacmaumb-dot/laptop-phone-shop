@@ -79,6 +79,7 @@ export function TicketTab({
   products: Product[];
   onClosed: () => void;
 }) {
+  const closeRef = onClosed;
   const [data, setData] = useState<TicketData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +134,7 @@ export function TicketTab({
       technicians={technicians}
       products={products}
       onReload={() => setVersion((v) => v + 1)}
+      onClosed={closeRef}
     />
   );
 }
@@ -142,11 +144,13 @@ function TicketTabInner({
   technicians,
   products,
   onReload,
+  onClosed,
 }: {
   ticket: TicketData;
   technicians: Technician[];
   products: Product[];
   onReload: () => void;
+  onClosed: () => void;
 }) {
   const isDelivered = ticket.status === "delivered";
   const [pending, startTransition] = useTransition();
@@ -494,13 +498,13 @@ function TicketTabInner({
             {!isDelivered && (
               <>
                 <Separator className="my-1" />
-                <div className="grid grid-cols-1 gap-2">
+                <div className="flex gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => handleSave(false)}
                     disabled={pending}
-                    className="w-full"
+                    className="flex-1"
                   >
                     {pending ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -513,8 +517,7 @@ function TicketTabInner({
                     type="button"
                     onClick={() => handleSave(true)}
                     disabled={pending}
-                    className="w-full"
-                    size="lg"
+                    className="flex-1"
                   >
                     {pending ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -541,6 +544,7 @@ function TicketTabInner({
                   open={returnOpen}
                   onOpenChange={setReturnOpen}
                   hideTrigger
+                  onDelivered={onClosed}
                 />
               </>
             )}

@@ -226,8 +226,8 @@ export function PosClient({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
-      <div className="space-y-4 min-w-0">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 lg:h-[calc(100vh-160px)]">
+      <div className="flex flex-col gap-3 min-w-0 min-h-0">
         {showHeader && (
           <div>
             <h1 className="text-xl font-bold tracking-tight">Bán hàng</h1>
@@ -249,7 +249,7 @@ export function PosClient({
           </div>
 
           <Tabs value={activeCat} onValueChange={setActiveCat}>
-            <TabsList className="overflow-x-auto justify-start w-full">
+            <TabsList className="overflow-x-auto overflow-y-hidden justify-start w-full flex-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <TabsTrigger value="all">Tất cả</TabsTrigger>
               {categories.map((c) => (
                 <TabsTrigger key={c.id} value={c.type}>
@@ -263,7 +263,7 @@ export function PosClient({
           </Tabs>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 content-start">
           {filtered.map((p) => (
             <button
               key={p.id}
@@ -309,7 +309,7 @@ export function PosClient({
         </div>
       </div>
 
-      <div className="hidden lg:block">
+      <div className="hidden lg:block min-h-0">
         <CartPanel
           cart={cart}
           subtotal={subtotal}
@@ -461,7 +461,7 @@ function CartPanel({
 }) {
   return (
     <Card
-      className={`sticky top-20 flex flex-col max-h-[calc(100vh-6rem)] gap-0 p-0 ${className}`}
+      className={`flex flex-col h-full max-h-[calc(100vh-160px)] gap-0 p-0 ${className}`}
     >
       <div className="p-3 border-b flex items-center gap-2">
         <ShoppingCart className="size-4" />

@@ -15,15 +15,18 @@ import {
   AlertTriangle,
   Boxes,
   TrendingUp,
+  Headphones,
 } from "lucide-react";
 import { formatVND } from "@/lib/format";
 import { ProductFilter } from "./product-filter";
-import { NewProductDialog } from "./new-product-dialog";
+import { ProductDialog } from "./product-dialog";
+import { ProductActions } from "./product-actions";
 
 const CAT_ICONS: Record<string, React.ReactNode> = {
-  phone: <Smartphone className="size-5" />,
-  laptop: <LaptopIcon className="size-5" />,
-  service: <Wrench className="size-5" />,
+  phone: <Smartphone className="size-4" />,
+  laptop: <LaptopIcon className="size-4" />,
+  service: <Wrench className="size-4" />,
+  accessory: <Headphones className="size-4" />,
 };
 
 export default async function ProductsPage({
@@ -85,7 +88,7 @@ export default async function ProductsPage({
             Quản lý sản phẩm, dịch vụ và tồn kho.
           </p>
         </div>
-        <NewProductDialog categories={categories} />
+        <ProductDialog categories={categories} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -129,7 +132,7 @@ export default async function ProductsPage({
               Không tìm thấy sản phẩm phù hợp.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2">
               {products.map((p) => {
                 const isService = p.category.type === "service";
                 const lowStock = !isService && p.stock <= 5;
@@ -137,91 +140,82 @@ export default async function ProductsPage({
                 return (
                   <div
                     key={p.id}
-                    className="group rounded-lg border bg-card hover:border-primary/60 hover:shadow-sm transition-all overflow-hidden"
+                    className="rounded-md border bg-card hover:border-primary/60 hover:shadow-sm transition-all flex items-center gap-2.5 p-2.5"
                   >
-                    <div className="relative bg-gradient-to-br from-muted/40 to-muted/10 aspect-[4/3] flex items-center justify-center text-muted-foreground">
-                      <div className="size-14 rounded-full bg-background/70 flex items-center justify-center text-foreground/60 group-hover:scale-110 transition-transform">
-                        {CAT_ICONS[p.category.type] || (
-                          <Package className="size-5" />
-                        )}
-                      </div>
-                      <div className="absolute top-2 left-2">
-                        <Badge variant="secondary" className="text-[10px]">
-                          {p.category.name}
-                        </Badge>
-                      </div>
-                      <div className="absolute top-2 right-2">
+                    <div className="size-10 shrink-0 rounded bg-muted/60 flex items-center justify-center text-muted-foreground">
+                      {CAT_ICONS[p.category.type] || (
+                        <Package className="size-4" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {p.sku}
+                        </span>
                         {isService ? (
                           <Badge
                             variant="outline"
-                            className="text-[10px] bg-background/80"
+                            className="text-[9px] h-4 px-1"
                           >
-                            Dịch vụ
+                            DV
                           </Badge>
                         ) : outOfStock ? (
                           <Badge
                             variant="destructive"
-                            className="text-[10px]"
+                            className="text-[9px] h-4 px-1"
                           >
-                            Hết hàng
+                            Hết
                           </Badge>
                         ) : lowStock ? (
                           <Badge
                             variant="outline"
-                            className="text-[10px] border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-950/40"
+                            className="text-[9px] h-4 px-1 border-amber-500 text-amber-700 dark:text-amber-400"
                           >
                             Còn {p.stock}
                           </Badge>
                         ) : (
                           <Badge
                             variant="secondary"
-                            className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            className="text-[9px] h-4 px-1"
                           >
-                            Tồn {p.stock}
+                            {p.stock}
                           </Badge>
                         )}
-                      </div>
-                    </div>
-                    <div className="p-3 space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {p.sku}
-                        </span>
                         {p.warranty > 0 && (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-[9px] text-muted-foreground">
                             BH {p.warranty}t
                           </span>
                         )}
                       </div>
-                      <div className="font-medium text-sm leading-tight line-clamp-2 min-h-[2.5em]">
+                      <div className="text-xs font-medium leading-snug line-clamp-1">
                         {p.name}
                       </div>
-                      {p.brand && (
-                        <div className="text-[11px] text-muted-foreground">
-                          {p.brand}
-                        </div>
-                      )}
-                      <div className="flex items-end justify-between pt-1.5 border-t">
-                        <div>
-                          <div className="text-[10px] text-muted-foreground">
-                            Giá bán
-                          </div>
-                          <div className="text-sm font-bold text-primary">
-                            {formatVND(p.price)}
-                          </div>
-                        </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs font-bold text-primary">
+                          {formatVND(p.price)}
+                        </span>
                         {!isService && p.costPrice > 0 && (
-                          <div className="text-right">
-                            <div className="text-[10px] text-muted-foreground">
-                              Giá nhập
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatVND(p.costPrice)}
-                            </div>
-                          </div>
+                          <span className="text-[10px] text-muted-foreground">
+                            nhập {formatVND(p.costPrice)}
+                          </span>
                         )}
                       </div>
                     </div>
+                    <ProductActions
+                      product={{
+                        id: p.id,
+                        sku: p.sku,
+                        name: p.name,
+                        brand: p.brand,
+                        categoryId: p.categoryId,
+                        price: p.price,
+                        costPrice: p.costPrice,
+                        stock: p.stock,
+                        warranty: p.warranty,
+                        description: p.description,
+                      }}
+                      categories={categories}
+                    />
                   </div>
                 );
               })}

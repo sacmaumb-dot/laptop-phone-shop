@@ -128,3 +128,27 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  header,
+  [data-app-header],
+  [data-no-print] {
+    display: none !important;
+  }
+  body,
+  html {
+    background: white !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  main {
+    overflow: visible !important;
+    height: auto !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  main > div {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}

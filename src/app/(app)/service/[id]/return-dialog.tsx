@@ -64,6 +64,7 @@ export function ReturnDialog({
   open: openProp,
   onOpenChange,
   hideTrigger,
+  onDelivered,
 }: {
   ticketId: string;
   ticketCode: string;
@@ -75,6 +76,7 @@ export function ReturnDialog({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
+  onDelivered?: () => void;
 }) {
   const router = useRouter();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -185,7 +187,11 @@ export function ReturnDialog({
         toast.success(`Đã trả máy phiếu ${ticketCode}`);
         setOpen(false);
         await printInBackground(`/service/${ticketId}/return`);
-        router.refresh();
+        if (onDelivered) {
+          onDelivered();
+        } else {
+          router.refresh();
+        }
       } else {
         toast.error(res.error || "Có lỗi xảy ra");
       }

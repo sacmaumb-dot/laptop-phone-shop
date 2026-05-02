@@ -42,3 +42,62 @@ export async function createProduct(data: {
     return { ok: false as const, error: "Có lỗi xảy ra" };
   }
 }
+
+export async function updateProduct(
+  id: string,
+  data: {
+    sku: string;
+    name: string;
+    brand?: string;
+    categoryId: string;
+    price: number;
+    costPrice: number;
+    stock: number;
+    warranty: number;
+    description?: string;
+  },
+) {
+  try {
+    await requireSession();
+    await prisma.product.update({
+      where: { id },
+      data: {
+        sku: data.sku,
+        name: data.name,
+        brand: data.brand || null,
+        categoryId: data.categoryId,
+        price: data.price,
+        costPrice: data.costPrice,
+        stock: data.stock,
+        warranty: data.warranty,
+        description: data.description || null,
+      },
+    });
+    revalidatePath("/products");
+    revalidatePath("/pos");
+    return { ok: true as const };
+  } catch (e) {
+    const err = e as { code?: string };
+    if (err.code === "P2002") {
+      return { ok: false as const, error: "SKU đã tồn tại" };
+    }
+    console.error(e);
+    return { ok: false as const, error: "Có lỗi xảy ra" };
+  }
+}
+
+export async function deleteProduct(id: string) {
+  try {
+    await requireSession();
+    await prisma.product.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    revalidatePath("/products");
+    revalidatePath("/pos");
+    return { ok: true as const };
+  } catch (e) {
+    console.error(e);
+    return { ok: false as const, error: "Có lỗi xảy ra" };
+  }
+}

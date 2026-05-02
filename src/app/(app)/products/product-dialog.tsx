@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,29 +17,67 @@ import {
 import { SelectField } from "@/components/ui/select-field";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createProduct } from "./actions";
+import { createProduct, updateProduct } from "./actions";
 
-export function NewProductDialog({
+type Category = { id: string; name: string; type: string };
+
+type ExistingProduct = {
+  id: string;
+  sku: string;
+  name: string;
+  brand: string | null;
+  categoryId: string;
+  price: number;
+  costPrice: number;
+  stock: number;
+  warranty: number;
+  description: string | null;
+};
+
+export function ProductDialog({
   categories,
+  product,
+  trigger,
+  open: openProp,
+  onOpenChange,
 }: {
-  categories: { id: string; name: string; type: string }[];
+  categories: Category[];
+  product?: ExistingProduct;
+  trigger?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = (v: boolean) => {
+    setInternalOpen(v);
+    onOpenChange?.(v);
+  };
+  const isEdit = !!product;
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState({
-    sku: "",
-    name: "",
-    brand: "",
-    categoryId: categories[0]?.id || "",
-    price: "",
-    costPrice: "",
-    stock: "",
-    warranty: "",
-    description: "",
+  const initial = () => ({
+    sku: product?.sku ?? "",
+    name: product?.name ?? "",
+    brand: product?.brand ?? "",
+    categoryId: product?.categoryId ?? categories[0]?.id ?? "",
+    price: product ? String(product.price) : "",
+    costPrice: product ? String(product.costPrice) : "",
+    stock: product ? String(product.stock) : "",
+    warranty: product ? String(product.warranty) : "",
+    description: product?.description ?? "",
   });
+  const [form, setForm] = useState(initial);
 
-  function set<K extends keyof typeof form>(k: K, v: string | null) {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+    if (open) setForm(initial());
+  }, [open, product?.id]);
+
+  function set<K extends keyof ReturnType<typeof initial>>(
+    k: K,
+    v: string | null,
+  ) {
     setForm((f) => ({ ...f, [k]: v ?? "" }));
   }
 
@@ -49,7 +87,7 @@ export function NewProductDialog({
       return;
     }
     startTransition(async () => {
-      const res = await createProduct({
+      const payload = {
         sku: form.sku,
         name: form.name,
         brand: form.brand,
@@ -59,21 +97,13 @@ export function NewProductDialog({
         stock: Number(form.stock) || 0,
         warranty: Number(form.warranty) || 0,
         description: form.description,
-      });
+      };
+      const res = isEdit && product
+        ? await updateProduct(product.id, payload)
+        : await createProduct(payload);
       if (res.ok) {
-        toast.success("Đã thêm sản phẩm");
+        toast.success(isEdit ? "Đã lưu thay đổi" : "Đã thêm sản phẩm");
         setOpen(false);
-        setForm({
-          sku: "",
-          name: "",
-          brand: "",
-          categoryId: categories[0]?.id || "",
-          price: "",
-          costPrice: "",
-          stock: "",
-          warranty: "",
-          description: "",
-        });
         router.refresh();
       } else {
         toast.error(res.error || "Lỗi");
@@ -83,13 +113,20 @@ export function NewProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
-        <Plus className="size-4" />
-        Thêm sản phẩm
-      </DialogTrigger>
+      {trigger ? (
+        <DialogTrigger render={trigger as React.ReactElement}>
+        </DialogTrigger>
+      ) : !isEdit && openProp === undefined ? (
+        <DialogTrigger render={<Button />}>
+          <Plus className="size-4" />
+          Thêm sản phẩm
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Thêm sản phẩm mới</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -183,7 +220,7 @@ export function NewProductDialog({
           </Button>
           <Button onClick={submit} disabled={pending}>
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Lưu
+            {isEdit ? "Lưu thay đổi" : "Lưu"}
           </Button>
         </DialogFooter>
       </DialogContent>

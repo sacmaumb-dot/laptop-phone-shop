@@ -32,10 +32,12 @@ export default async function AppLayout({
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen flex flex-col">
+      <div className="h-screen flex flex-col">
         <AppHeader user={user} pendingTickets={pendingTickets} />
-        <main className="flex-1 p-4 sm:p-5 max-w-[1600px] w-full mx-auto">
-          {children}
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <div className="p-4 sm:p-5 max-w-[1600px] w-full mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </TooltipProvider>
