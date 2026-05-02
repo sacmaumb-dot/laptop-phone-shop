@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { logoutAction } from "@/app/(app)/actions";
 import type { SessionUser } from "@/lib/auth";
+import Image from "next/image";
 
 type PendingTicket = {
   id: string;
@@ -50,9 +51,15 @@ const STATUS_LABEL: Record<string, string> = {
 export function AppHeader({
   user,
   pendingTickets,
+  shopName,
+  shopTagline,
+  logoUrl,
 }: {
   user: SessionUser;
   pendingTickets: PendingTicket[];
+  shopName: string;
+  shopTagline: string;
+  logoUrl: string | null;
 }) {
   const [pendingQ, setPendingQ] = useState("");
   const filteredPending = useMemo(() => {
@@ -77,18 +84,32 @@ export function AppHeader({
   ];
   if (user.role === "admin") {
     navData.push({ title: "Người dùng", url: "/users", icon: Settings });
+    navData.push({ title: "Cài đặt cửa hàng", url: "/settings", icon: Settings });
   }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4">
       <Link href="/pos" className="flex items-center gap-2 shrink-0">
-        <div className="size-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-          <Laptop className="size-5" />
-        </div>
+        {logoUrl ? (
+          <div className="size-9 rounded-lg overflow-hidden bg-background border flex items-center justify-center shrink-0">
+            <Image
+              src={logoUrl}
+              alt={shopName}
+              width={36}
+              height={36}
+              className="object-contain max-h-9"
+              unoptimized
+            />
+          </div>
+        ) : (
+          <div className="size-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+            <Laptop className="size-5" />
+          </div>
+        )}
         <div className="hidden sm:flex flex-col">
-          <span className="font-bold text-sm leading-tight">TechShop</span>
+          <span className="font-bold text-sm leading-tight">{shopName}</span>
           <span className="text-[10px] text-muted-foreground leading-tight">
-            Laptop & Phone
+            {shopTagline}
           </span>
         </div>
       </Link>

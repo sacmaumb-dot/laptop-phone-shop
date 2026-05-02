@@ -7,6 +7,7 @@ import {
   ReceiptHeader,
   ReceiptSection,
 } from "@/components/print-receipt-shell";
+import { getSettings } from "@/lib/settings";
 
 const DEVICE_LABELS: Record<string, string> = {
   phone: "Điện thoại",
@@ -17,10 +18,15 @@ const DEVICE_LABELS: Record<string, string> = {
 
 export default async function ServiceIntakePrintPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ size?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const settings = await getSettings();
+  const size = sp.size || settings.printSize || "A4";
   const ticket = await prisma.serviceTicket.findUnique({
     where: { id },
     include: {
@@ -37,14 +43,17 @@ export default async function ServiceIntakePrintPage({
         backHref={`/service/${id}`}
         backLabel="Quay lại phiếu"
         printLabel="In phiếu nhận"
+        size={size}
+        settings={settings}
       >
         <ReceiptHeader
           title="PHIẾU NHẬN MÁY"
           code={ticket.code}
           subtitle={`Tiếp nhận: ${formatDateTime(ticket.receivedAt)}`}
+          settings={settings}
         />
 
-        <div className="p-6 space-y-5 text-sm">
+        <div className="receipt-padding p-5 space-y-4 text-sm">
           <ReceiptSection title="Khách hàng">
             <div className="grid grid-cols-2 gap-2">
               <div>

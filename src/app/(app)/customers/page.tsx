@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { formatVND, formatDate } from "@/lib/format";
 import { CustomerSearch } from "./customer-search";
-import { NewCustomerDialog } from "./new-customer-dialog";
+import { NewCustomerButton, CustomerRowActions } from "./customer-actions";
+import Link from "next/link";
 
 export default async function CustomersPage({
   searchParams,
@@ -72,7 +73,7 @@ export default async function CustomersPage({
             Quản lý thông tin khách hàng và lịch sử giao dịch.
           </p>
         </div>
-        <NewCustomerDialog />
+        <NewCustomerButton />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -126,9 +127,26 @@ export default async function CustomersPage({
                 return (
                   <div
                     key={c.id}
-                    className="rounded-md border bg-card hover:border-primary/60 hover:shadow-sm transition-all p-3"
+                    className="rounded-md border bg-card hover:border-primary/60 hover:shadow-sm transition-all p-3 group relative"
                   >
-                    <div className="flex items-start gap-2.5">
+                    <Link
+                      href={`/customers/${c.id}`}
+                      className="absolute inset-0"
+                      aria-label={`Xem ${c.name}`}
+                    />
+                    <div className="absolute right-1.5 top-1.5 z-10 opacity-0 group-hover:opacity-100 transition">
+                      <CustomerRowActions
+                        customer={{
+                          id: c.id,
+                          name: c.name,
+                          phone: c.phone,
+                          email: c.email,
+                          address: c.address,
+                          note: c.note,
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-start gap-2.5 relative pointer-events-none">
                       <div className="size-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm">
                         {initials || <Users className="size-4" />}
                       </div>
@@ -162,7 +180,7 @@ export default async function CustomersPage({
                         )}
                       </div>
                     </div>
-                    <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+                    <div className="mt-2.5 grid grid-cols-3 gap-1.5 relative pointer-events-none">
                       <Stat
                         icon={<ShoppingCart className="size-3" />}
                         label="HD"
@@ -182,7 +200,7 @@ export default async function CustomersPage({
                         tone="primary"
                       />
                     </div>
-                    <div className="mt-2 text-[10px] text-muted-foreground">
+                    <div className="mt-2 text-[10px] text-muted-foreground relative pointer-events-none">
                       Tham gia {formatDate(c.createdAt)}
                     </div>
                   </div>

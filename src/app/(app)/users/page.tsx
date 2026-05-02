@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Settings, Shield, UserCog, Wrench, Mail, Calendar } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { NewUserDialog } from "./new-user-dialog";
+import { UserRowActions } from "./user-actions";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Quản trị",
@@ -100,8 +101,19 @@ export default async function UsersPage() {
               return (
                 <div
                   key={u.id}
-                  className="rounded-md border bg-card hover:border-primary/60 hover:shadow-sm transition-all p-3"
+                  className="rounded-md border bg-card hover:border-primary/60 hover:shadow-sm transition-all p-3 group relative"
                 >
+                  <div className="absolute right-1.5 top-1.5 z-10 opacity-0 group-hover:opacity-100 transition">
+                    <UserRowActions
+                      user={{
+                        id: u.id,
+                        name: u.name,
+                        email: u.email,
+                        role: u.role,
+                        active: u.active,
+                      }}
+                    />
+                  </div>
                   <div className="flex items-start gap-2.5">
                     <div
                       className={`size-10 shrink-0 rounded-full flex items-center justify-center font-semibold text-sm ${roleColor}`}

@@ -1,26 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { formatVND, formatDateTime } from "@/lib/format";
-import Link from "next/link";
-import { ArrowLeft, Receipt } from "lucide-react";
-import { PrintButton } from "@/components/print-button";
+import {
+  PrintReceiptShell,
+  ReceiptHeader,
+  ReceiptSection,
+} from "@/components/print-receipt-shell";
+import { getSettings } from "@/lib/settings";
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: "Tiền mặt",
@@ -31,10 +17,16 @@ const PAYMENT_LABELS: Record<string, string> = {
 
 export default async function SaleDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ size?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const settings = await getSettings();
+  const size = sp.size || settings.printSize || "A4";
+
   const sale = await prisma.sale.findUnique({
     where: { id },
     include: {
@@ -43,154 +35,164 @@ export default async function SaleDetailPage({
       items: { include: { product: true } },
     },
   });
-
   if (!sale) notFound();
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between gap-2 print:hidden">
-        <Link href="/sales" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-          <ArrowLeft className="size-4" />
-          Quay lại
-        </Link>
-        <div className="flex gap-2">
-          <PrintButton label="In hoá đơn" />
-        </div>
-      </div>
+    <PrintReceiptShell
+      backHref="/sales"
+      backLabel="Quay lại"
+      printLabel="In hoá đơn"
+      size={size}
+      settings={settings}
+    >
+      <ReceiptHeader
+        title="HOÁ ĐƠN BÁN HÀNG"
+        code={sale.code}
+        subtitle={formatDateTime(sale.createdAt)}
+        settings={settings}
+      />
 
-      <Card className="print:shadow-none print:border-0">
-        <CardHeader className="border-b">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <Receipt className="size-5 text-primary" />
-                <CardTitle>HOÁ ĐƠN BÁN HÀNG</CardTitle>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1 font-mono">
-                {sale.code}
-              </p>
-            </div>
-            <div className="text-right text-sm">
-              <div className="font-bold text-base">TechShop</div>
-              <div className="text-muted-foreground">
-                Cửa hàng Laptop & Điện thoại
-              </div>
-              <div className="text-muted-foreground">
-                Hotline: 1900 1234
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6 pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div className="space-y-1">
-              <div className="text-muted-foreground text-xs uppercase tracking-wide">
-                Khách hàng
-              </div>
-              {sale.customer ? (
-                <>
-                  <div className="font-medium">{sale.customer.name}</div>
-                  <div>{sale.customer.phone}</div>
-                  {sale.customer.address && (
-                    <div className="text-muted-foreground">
-                      {sale.customer.address}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="font-medium">Khách lẻ</div>
-              )}
-            </div>
-            <div className="space-y-1 sm:text-right">
-              <div className="text-muted-foreground text-xs uppercase tracking-wide">
-                Thông tin
+      <div className="receipt-padding p-5 space-y-4 text-sm">
+        <ReceiptSection title="Khách hàng">
+          {sale.customer ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-xs text-muted-foreground">Họ tên</div>
+                <div className="font-medium">{sale.customer.name}</div>
               </div>
               <div>
-                <span className="text-muted-foreground">Ngày: </span>
-                {formatDateTime(sale.createdAt)}
+                <div className="text-xs text-muted-foreground">SĐT</div>
+                <div className="font-medium font-mono">
+                  {sale.customer.phone}
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Nhân viên: </span>
-                {sale.user.name}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Thanh toán: </span>
-                <Badge variant="outline">
-                  {PAYMENT_LABELS[sale.paymentMethod] || sale.paymentMethod}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Sản phẩm</TableHead>
-                <TableHead className="text-right">Đơn giá</TableHead>
-                <TableHead className="text-right">SL</TableHead>
-                <TableHead className="text-right">Thành tiền</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sale.items.map((item, idx) => (
-                <TableRow key={item.id}>
-                  <TableCell className="text-muted-foreground">
-                    {idx + 1}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{item.product.name}</div>
-                    <div className="text-xs text-muted-foreground font-mono">
-                      {item.product.sku}
-                      {item.imei && ` · IMEI: ${item.imei}`}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatVND(item.unitPrice)}
-                  </TableCell>
-                  <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatVND(item.subtotal)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          <div className="flex justify-end">
-            <div className="w-full sm:w-72 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tạm tính</span>
-                <span>{formatVND(sale.subtotal)}</span>
-              </div>
-              {sale.discount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Giảm giá</span>
-                  <span className="text-destructive">
-                    -{formatVND(sale.discount)}
-                  </span>
+              {sale.customer.address && (
+                <div className="col-span-2">
+                  <div className="text-xs text-muted-foreground">Địa chỉ</div>
+                  <div>{sale.customer.address}</div>
                 </div>
               )}
-              <Separator />
-              <div className="flex justify-between text-lg font-bold">
-                <span>Tổng cộng</span>
-                <span className="text-primary">{formatVND(sale.total)}</span>
-              </div>
+            </div>
+          ) : (
+            <div className="font-medium">Khách lẻ</div>
+          )}
+        </ReceiptSection>
+
+        <ReceiptSection title="Chi tiết">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="text-left font-medium py-1.5">Sản phẩm</th>
+                <th className="text-right font-medium py-1.5 w-10">SL</th>
+                <th className="text-right font-medium py-1.5 w-24 print-hide-on-thermal">
+                  Đơn giá
+                </th>
+                <th className="text-right font-medium py-1.5 w-28">
+                  Thành tiền
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sale.items.map((item) => (
+                <tr key={item.id} className="border-b last:border-0 align-top">
+                  <td className="py-1.5">
+                    <div className="font-medium">{item.product.name}</div>
+                    {(item.product.sku || item.imei) && (
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {item.product.sku}
+                        {item.imei && ` · IMEI: ${item.imei}`}
+                      </div>
+                    )}
+                  </td>
+                  <td className="text-right py-1.5">{item.quantity}</td>
+                  <td className="text-right py-1.5 print-hide-on-thermal">
+                    {formatVND(item.unitPrice)}
+                  </td>
+                  <td className="text-right py-1.5 font-medium">
+                    {formatVND(item.subtotal)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ReceiptSection>
+
+        <div className="rounded-md border p-3 space-y-1.5">
+          <Row label="Tạm tính" value={formatVND(sale.subtotal)} />
+          {sale.discount > 0 && (
+            <Row
+              label="Giảm giá"
+              value={`-${formatVND(sale.discount)}`}
+              color="text-emerald-600"
+            />
+          )}
+          <Row
+            label="Phương thức"
+            value={PAYMENT_LABELS[sale.paymentMethod] || sale.paymentMethod}
+          />
+          <div className="border-t pt-1.5">
+            <Row
+              label="Tổng cộng"
+              value={formatVND(sale.total)}
+              bold
+              color="text-primary"
+            />
+          </div>
+        </div>
+
+        {sale.note && (
+          <div className="text-xs text-muted-foreground">
+            <span className="font-semibold">Ghi chú:</span> {sale.note}
+          </div>
+        )}
+
+        <div className="text-center text-xs text-muted-foreground italic pt-2 border-t">
+          Cảm ơn quý khách! Hẹn gặp lại.
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 pt-3 print-hide-on-thermal">
+          <div className="text-center">
+            <div className="text-[11px] text-muted-foreground mb-10">
+              Khách hàng
+            </div>
+            <div className="border-t pt-1 text-[10px] text-muted-foreground">
+              Ký, ghi rõ họ tên
             </div>
           </div>
-
-          {sale.note && (
-            <div className="rounded-lg border p-3 text-sm bg-muted/30">
-              <span className="text-muted-foreground">Ghi chú: </span>
-              {sale.note}
+          <div className="text-center">
+            <div className="text-[11px] text-muted-foreground mb-1">
+              Nhân viên
             </div>
-          )}
+            <div className="text-sm font-medium mb-7">{sale.user.name}</div>
+            <div className="border-t pt-1 text-[10px] text-muted-foreground">
+              Ký xác nhận
+            </div>
+          </div>
+        </div>
+      </div>
+    </PrintReceiptShell>
+  );
+}
 
-          <p className="text-center text-sm text-muted-foreground italic pt-4 border-t">
-            Cảm ơn quý khách! Hẹn gặp lại.
-          </p>
-        </CardContent>
-      </Card>
+function Row({
+  label,
+  value,
+  color,
+  bold,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+  bold?: boolean;
+}) {
+  return (
+    <div className="flex justify-between text-sm">
+      <span className={bold ? "font-semibold" : "text-muted-foreground"}>
+        {label}
+      </span>
+      <span className={`${bold ? "font-bold" : ""} ${color || ""}`}>
+        {value}
+      </span>
     </div>
   );
 }

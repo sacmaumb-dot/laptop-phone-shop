@@ -12,6 +12,23 @@ datasource db {
 }
 
 // ============================================
+// SETTINGS / APP CONFIG
+// ============================================
+model AppSetting {
+  id          String   @id @default("singleton")
+  shopName    String   @default("TechShop")
+  siteTitle   String   @default("TechShop - Quản lý cửa hàng Laptop & Điện thoại")
+  shopTagline String   @default("Laptop & Điện thoại")
+  shopAddress String?
+  shopPhone   String?
+  shopEmail   String?
+  logoUrl     String?
+  faviconUrl  String?
+  printSize   String   @default("A4") // A4 | 80mm
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
 // USERS / AUTH
 // ============================================
 model User {

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/settings";
 
 export default async function AppLayout({
   children,
@@ -11,6 +12,8 @@ export default async function AppLayout({
 }) {
   const user = await getSession();
   if (!user) redirect("/login");
+
+  const settings = await getSettings();
 
   const tickets = await prisma.serviceTicket.findMany({
     where: {
@@ -34,7 +37,13 @@ export default async function AppLayout({
   return (
     <TooltipProvider>
       <div className="h-screen flex flex-col">
-        <AppHeader user={user} pendingTickets={pendingTickets} />
+        <AppHeader
+          user={user}
+          pendingTickets={pendingTickets}
+          shopName={settings.shopName}
+          shopTagline={settings.shopTagline}
+          logoUrl={settings.logoUrl}
+        />
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-4 sm:p-5 max-w-[1600px] w-full mx-auto">
             {children}
