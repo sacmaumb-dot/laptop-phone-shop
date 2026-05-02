@@ -1,24 +1,28 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { formatVND, formatDateTime } from "@/lib/format";
-import { Wrench, Plus, Smartphone, Laptop, Tablet } from "lucide-react";
+import {
+  Wrench,
+  Plus,
+  Smartphone,
+  Laptop,
+  Tablet,
+  Phone,
+  ChevronRight,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Package,
+} from "lucide-react";
 import { ServiceStatusBadge } from "@/components/service-status-badge";
 import { ServiceFilter } from "./service-filter";
 
@@ -26,6 +30,7 @@ const DEVICE_ICONS: Record<string, React.ReactNode> = {
   phone: <Smartphone className="size-4" />,
   laptop: <Laptop className="size-4" />,
   tablet: <Tablet className="size-4" />,
+  other: <Package className="size-4" />,
 };
 
 export default async function ServicePage({
@@ -70,11 +75,11 @@ export default async function ServicePage({
     (countMap.repairing || 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Sửa chữa & Dịch vụ
+            Phiếu sửa chữa
           </h1>
           <p className="text-sm text-muted-foreground">
             Quản lý phiếu tiếp nhận thiết bị, theo dõi tiến độ và trả máy.
@@ -82,146 +87,146 @@ export default async function ServicePage({
         </div>
         <Link href="/pos" className={buttonVariants()}>
           <Plus className="size-4" />
-          Phiếu sửa chữa mới
+          Phiếu mới
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Đang xử lý" value={totalActive} accent="bg-blue-500/10 text-blue-600" />
-        <StatCard
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Kpi
+          icon={<Clock className="size-4" />}
+          label="Đang xử lý"
+          value={String(totalActive)}
+          tone="primary"
+        />
+        <Kpi
+          icon={<AlertCircle className="size-4" />}
           label="Hoàn tất chờ trả"
-          value={countMap.completed || 0}
-          accent="bg-emerald-500/10 text-emerald-600"
+          value={String(countMap.completed || 0)}
         />
-        <StatCard
+        <Kpi
+          icon={<CheckCircle2 className="size-4" />}
           label="Đã trả máy"
-          value={countMap.delivered || 0}
-          accent="bg-zinc-500/10 text-zinc-600"
+          value={String(countMap.delivered || 0)}
         />
-        <StatCard
+        <Kpi
+          icon={<XCircle className="size-4" />}
           label="Đã huỷ"
-          value={countMap.cancelled || 0}
-          accent="bg-red-500/10 text-red-600"
+          value={String(countMap.cancelled || 0)}
         />
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="border-b pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
             <Wrench className="size-4" />
-            Danh sách phiếu
+            Danh sách ({tickets.length})
           </CardTitle>
-          <CardDescription>
-            Tìm kiếm theo mã phiếu, IMEI, tên/SĐT khách, model thiết bị.
-          </CardDescription>
           <ServiceFilter />
         </CardHeader>
-        <CardContent className="px-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mã phiếu</TableHead>
-                  <TableHead>Khách hàng</TableHead>
-                  <TableHead>Thiết bị</TableHead>
-                  <TableHead>Vấn đề</TableHead>
-                  <TableHead>Tiếp nhận</TableHead>
-                  <TableHead>KTV</TableHead>
-                  <TableHead className="text-right">Dự kiến</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tickets.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center py-12 text-muted-foreground"
-                    >
-                      Không có phiếu sửa chữa nào.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {tickets.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-mono font-medium">
-                      <Link
-                        href={`/service/${t.id}`}
-                        className="text-primary hover:underline"
-                      >
-                        {t.code}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">{t.customer.name}</div>
-                      <div className="text-xs text-muted-foreground font-mono">
-                        {t.customer.phone}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">
-                          {DEVICE_ICONS[t.deviceType]}
+        <CardContent className="p-3">
+          {tickets.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              Không có phiếu sửa chữa nào.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+              {tickets.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/service/${t.id}`}
+                  className="rounded-md border bg-card hover:border-primary/60 hover:shadow-sm transition-all p-3 group block"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="size-9 shrink-0 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                      {DEVICE_ICONS[t.deviceType] ?? (
+                        <Wrench className="size-4" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-sm font-semibold">
+                          {t.code}
                         </span>
-                        <div>
-                          <div className="text-sm">
-                            {t.deviceBrand} {t.deviceModel}
-                          </div>
-                          {t.imei && (
-                            <div className="text-xs text-muted-foreground font-mono">
-                              {t.imei}
-                            </div>
-                          )}
-                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell className="max-w-[240px]">
-                      <div className="text-sm line-clamp-2">{t.problem}</div>
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
-                      {formatDateTime(t.receivedAt)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {t.assignedTo?.name || "—"}
-                    </TableCell>
-                    <TableCell className="text-right text-sm whitespace-nowrap">
-                      {t.estimatedCost > 0
-                        ? formatVND(t.estimatedCost)
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <ServiceStatusBadge status={t.status} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {formatDateTime(t.receivedAt)}
+                      </div>
+                    </div>
+                    <ServiceStatusBadge status={t.status} />
+                  </div>
+
+                  <div className="mt-2 space-y-0.5">
+                    <div className="text-xs font-medium truncate">
+                      {t.customer.name}
+                      <span className="ml-1.5 text-[10px] font-mono text-muted-foreground">
+                        <Phone className="inline size-2.5 mr-0.5" />
+                        {t.customer.phone}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {[t.deviceBrand, t.deviceModel].filter(Boolean).join(" ") ||
+                        t.deviceType}
+                      {t.imei && (
+                        <span className="ml-1.5 font-mono">· {t.imei}</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground line-clamp-1">
+                      {t.problem}
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-end justify-between gap-2">
+                    <div className="text-[10px] text-muted-foreground">
+                      KTV: {t.assignedTo?.name ?? "Chưa giao"}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-primary">
+                        {t.estimatedCost > 0
+                          ? formatVND(t.estimatedCost)
+                          : "—"}
+                      </div>
+                      <ChevronRight className="size-3.5 ml-auto text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function StatCard({
+function Kpi({
+  icon,
   label,
   value,
-  accent,
+  tone,
 }: {
+  icon: React.ReactNode;
   label: string;
-  value: number;
-  accent: string;
+  value: string;
+  tone?: "primary";
 }) {
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="p-4 flex items-center gap-3">
         <div
-          className={`size-8 rounded-md ${accent} flex items-center justify-center mb-2`}
+          className={`size-10 rounded-md flex items-center justify-center ${
+            tone === "primary"
+              ? "bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground"
+          }`}
         >
-          <Wrench className="size-4" />
+          {icon}
         </div>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="min-w-0">
+          <div className="text-[11px] text-muted-foreground uppercase tracking-wide">
+            {label}
+          </div>
+          <div className="text-base font-bold truncate">{value}</div>
+        </div>
       </CardContent>
     </Card>
   );

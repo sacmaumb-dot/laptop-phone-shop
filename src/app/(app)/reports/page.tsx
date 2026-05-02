@@ -16,10 +16,187 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatVND, formatNumber } from "@/lib/format";
-import { TrendingUp, ShoppingCart, Wrench, Users } from "lucide-react";
+import {
+  TrendingUp,
+  ShoppingCart,
+  Wrench,
+  Users,
+  BarChart3,
+} from "lucide-react";
 import { RevenueChart } from "@/components/revenue-chart";
+import { ReportTabs } from "./report-tabs";
+import {
+  Reconciliation,
+  type ReconRow,
+  type ReconStaff,
+} from "./reconciliation";
 
-export default async function ReportsPage() {
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: "Tiền mặt",
+  card: "Thẻ",
+  transfer: "Chuyển khoản",
+  wallet: "Ví ĐT",
+};
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; date?: string }>;
+}) {
+  const sp = await searchParams;
+  const tab = sp.tab === "shifts" ? "shifts" : "overview";
+  const dateStr = sp.date || new Date().toISOString().slice(0, 10);
+
+  if (tab === "shifts") {
+    return (
+      <ReportsLayout active="shifts">
+        <ShiftsTab date={dateStr} />
+      </ReportsLayout>
+    );
+  }
+  return (
+    <ReportsLayout active="overview">
+      <OverviewTab />
+    </ReportsLayout>
+  );
+}
+
+function ReportsLayout({
+  active,
+  children,
+}: {
+  active: "overview" | "shifts";
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Báo cáo</h1>
+        <p className="text-sm text-muted-foreground">
+          Tổng hợp doanh thu và đối soát ca trực nhân viên.
+        </p>
+      </div>
+      <ReportTabs active={active} />
+      {children}
+    </div>
+  );
+}
+
+async function ShiftsTab({ date }: { date: string }) {
+  // Build day range from local date (server-local = same as TZ used elsewhere)
+  const start = new Date(date + "T00:00:00");
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  const [sales, tickets, users] = await Promise.all([
+    prisma.sale.findMany({
+      where: { createdAt: { gte: start, lt: end }, status: "paid" },
+      include: { customer: true, user: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.serviceTicket.findMany({
+      where: {
+        deliveredAt: { gte: start, lt: end },
+        status: "delivered",
+      },
+      include: { customer: true, createdBy: true },
+      orderBy: { deliveredAt: "asc" },
+    }),
+    prisma.user.findMany({ orderBy: { name: "asc" } }),
+  ]);
+
+  const userMap = new Map(users.map((u) => [u.id, u]));
+  const grouped = new Map<string, ReconRow[]>();
+
+  for (const s of sales) {
+    const arr = grouped.get(s.userId) ?? [];
+    arr.push({
+      type: "sale",
+      id: s.id,
+      code: s.code,
+      createdAt: s.createdAt.toISOString(),
+      customerName: s.customer?.name ?? null,
+      paymentMethod: s.paymentMethod,
+      total: s.total,
+    });
+    grouped.set(s.userId, arr);
+  }
+  for (const t of tickets) {
+    const uid = t.createdById;
+    const arr = grouped.get(uid) ?? [];
+    arr.push({
+      type: "service",
+      id: t.id,
+      code: t.code,
+      createdAt: (t.deliveredAt ?? t.createdAt).toISOString(),
+      customerName: t.customer?.name ?? null,
+      paymentMethod: t.paymentMethod || "cash",
+      total: t.finalCost,
+    });
+    grouped.set(uid, arr);
+  }
+
+  const staff: ReconStaff[] = Array.from(grouped.entries())
+    .map(([uid, rows]) => {
+      const u = userMap.get(uid);
+      return {
+        id: uid,
+        name: u?.name ?? "—",
+        email: u?.email ?? "",
+        role: u?.role ?? "",
+        rows: rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      };
+    })
+    .sort((a, b) => b.rows.length - a.rows.length);
+
+  const total = sales.reduce((s, x) => s + x.total, 0) +
+    tickets.reduce((s, x) => s + x.finalCost, 0);
+  const cashTotal =
+    sales
+      .filter((s) => s.paymentMethod === "cash")
+      .reduce((s, x) => s + x.total, 0) +
+    tickets
+      .filter((t) => (t.paymentMethod || "cash") === "cash")
+      .reduce((s, x) => s + x.finalCost, 0);
+  const transferTotal =
+    sales
+      .filter((s) => s.paymentMethod === "transfer")
+      .reduce((s, x) => s + x.total, 0) +
+    tickets
+      .filter((t) => t.paymentMethod === "transfer")
+      .reduce((s, x) => s + x.finalCost, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Kpi
+          label="Tổng doanh thu ngày"
+          value={formatVND(total)}
+          icon={<TrendingUp className="size-4" />}
+          tone="primary"
+        />
+        <Kpi
+          label="Tiền mặt"
+          value={formatVND(cashTotal)}
+          icon={<ShoppingCart className="size-4" />}
+        />
+        <Kpi
+          label="Chuyển khoản"
+          value={formatVND(transferTotal)}
+          icon={<Wrench className="size-4" />}
+        />
+        <Kpi
+          label="Số nhân viên trực"
+          value={String(staff.length)}
+          icon={<Users className="size-4" />}
+        />
+      </div>
+      <Reconciliation date={date} staff={staff} />
+    </div>
+  );
+}
+
+async function OverviewTab() {
   const now = new Date();
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -29,7 +206,6 @@ export default async function ReportsPage() {
   const [
     todayRevenue,
     monthRevenue,
-    monthSales,
     monthServiceRevenue,
     last30Sales,
     topProducts,
@@ -44,7 +220,6 @@ export default async function ReportsPage() {
       _sum: { total: true },
       _count: true,
     }),
-    prisma.sale.count({ where: { createdAt: { gte: startOfMonth } } }),
     prisma.serviceTicket.aggregate({
       where: {
         deliveredAt: { gte: startOfMonth },
@@ -79,7 +254,6 @@ export default async function ReportsPage() {
   });
   const productMap = Object.fromEntries(productDetails.map((p) => [p.id, p]));
 
-  // Build chart data
   const revenueByDay = new Map<string, number>();
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
@@ -94,23 +268,9 @@ export default async function ReportsPage() {
     total,
   }));
 
-  const PAYMENT_LABELS: Record<string, string> = {
-    cash: "Tiền mặt",
-    card: "Thẻ",
-    transfer: "Chuyển khoản",
-    wallet: "Ví ĐT",
-  };
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Báo cáo</h1>
-        <p className="text-sm text-muted-foreground">
-          Tổng hợp doanh thu, sản phẩm bán chạy và phân bổ thanh toán.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
           icon={<TrendingUp className="size-5" />}
           label="Doanh thu hôm nay"
@@ -118,7 +278,7 @@ export default async function ReportsPage() {
         />
         <KpiCard
           icon={<ShoppingCart className="size-5" />}
-          label={`Doanh thu tháng (${monthSales} đơn)`}
+          label={`Doanh thu tháng (${monthRevenue._count} đơn)`}
           value={formatVND(monthRevenue._sum.total || 0)}
         />
         <KpiCard
@@ -127,7 +287,7 @@ export default async function ReportsPage() {
           value={formatVND(monthServiceRevenue._sum.finalCost || 0)}
         />
         <KpiCard
-          icon={<Users className="size-5" />}
+          icon={<BarChart3 className="size-5" />}
           label="TB doanh thu / đơn"
           value={formatVND(
             monthRevenue._count
@@ -139,9 +299,9 @@ export default async function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Doanh thu 30 ngày qua</CardTitle>
-          <CardDescription>
-            Tổng doanh thu mỗi ngày trong vòng 30 ngày trở lại đây.
+          <CardTitle className="text-base">Doanh thu 30 ngày qua</CardTitle>
+          <CardDescription className="text-xs">
+            Tổng doanh thu mỗi ngày trong 30 ngày trở lại đây.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -149,12 +309,14 @@ export default async function ReportsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
           <CardHeader>
-            <CardTitle>Top 10 sản phẩm bán chạy (tháng)</CardTitle>
-            <CardDescription>
-              Theo doanh thu trong tháng hiện tại.
+            <CardTitle className="text-base">
+              Top 10 sản phẩm bán chạy
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Theo doanh thu trong tháng.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0">
@@ -209,9 +371,9 @@ export default async function ReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Phương thức thanh toán (tháng)</CardTitle>
-            <CardDescription>
-              Tỉ trọng doanh thu theo phương thức thanh toán.
+            <CardTitle className="text-base">Phương thức thanh toán</CardTitle>
+            <CardDescription className="text-xs">
+              Tỉ trọng doanh thu theo phương thức trong tháng.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0">
@@ -242,8 +404,7 @@ export default async function ReportsPage() {
                     <TableRow key={p.paymentMethod}>
                       <TableCell>
                         <Badge variant="outline">
-                          {PAYMENT_LABELS[p.paymentMethod] ||
-                            p.paymentMethod}
+                          {PAYMENT_LABELS[p.paymentMethod] || p.paymentMethod}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">{p._count}</TableCell>
@@ -265,6 +426,40 @@ export default async function ReportsPage() {
   );
 }
 
+function Kpi({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone?: "primary";
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <div
+          className={`size-10 rounded-md flex items-center justify-center ${
+            tone === "primary"
+              ? "bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] text-muted-foreground uppercase tracking-wide">
+            {label}
+          </div>
+          <div className="text-base font-bold truncate">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function KpiCard({
   icon,
   label,
@@ -276,15 +471,15 @@ function KpiCard({
 }) {
   return (
     <Card>
-      <CardContent className="p-5 flex items-center gap-3">
+      <CardContent className="p-4 flex items-center gap-3">
         <div className="size-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
             {label}
           </div>
-          <div className="text-lg font-bold tracking-tight truncate">
+          <div className="text-base font-bold tracking-tight truncate">
             {value}
           </div>
         </div>

@@ -3,19 +3,20 @@ import type { Prisma } from "@/generated/prisma";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Users } from "lucide-react";
+  Users,
+  UserPlus,
+  TrendingUp,
+  Phone,
+  Mail,
+  MapPin,
+  Wrench,
+  ShoppingCart,
+} from "lucide-react";
 import { formatVND, formatDate } from "@/lib/format";
 import { CustomerSearch } from "./customer-search";
 import { NewCustomerDialog } from "./new-customer-dialog";
@@ -36,18 +37,34 @@ export default async function CustomersPage({
     ];
   }
 
-  const customers = await prisma.customer.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      sales: { select: { total: true } },
-      serviceTickets: { select: { id: true } },
-    },
-    take: 200,
-  });
+  const [customers, totalCount, monthCount] = await Promise.all([
+    prisma.customer.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        sales: { select: { total: true } },
+        serviceTickets: { select: { id: true } },
+      },
+      take: 200,
+    }),
+    prisma.customer.count(),
+    prisma.customer.count({
+      where: {
+        createdAt: {
+          gte: new Date(new Date().setDate(new Date().getDate() - 30)),
+        },
+      },
+    }),
+  ]);
+
+  const totalSpent = customers.reduce(
+    (s, c) => s + c.sales.reduce((ss, x) => ss + x.total, 0),
+    0,
+  );
+  const totalSC = customers.reduce((s, c) => s + c.serviceTickets.length, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Khách hàng</h1>
@@ -58,81 +75,189 @@ export default async function CustomersPage({
         <NewCustomerDialog />
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Kpi
+          icon={<Users className="size-4" />}
+          label="Tổng khách hàng"
+          value={String(totalCount)}
+        />
+        <Kpi
+          icon={<UserPlus className="size-4" />}
+          label="Mới (30 ngày)"
+          value={String(monthCount)}
+          tone="primary"
+        />
+        <Kpi
+          icon={<TrendingUp className="size-4" />}
+          label="Tổng chi tiêu"
+          value={formatVND(totalSpent)}
+        />
+        <Kpi
+          icon={<Wrench className="size-4" />}
+          label="Phiếu sửa chữa"
+          value={String(totalSC)}
+        />
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="border-b pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
             <Users className="size-4" />
-            {customers.length} khách hàng
+            Danh sách ({customers.length})
           </CardTitle>
-          <CardDescription>
-            Tìm kiếm theo tên, số điện thoại, email, mã khách hàng.
-          </CardDescription>
           <CustomerSearch />
         </CardHeader>
-        <CardContent className="px-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mã KH</TableHead>
-                  <TableHead>Họ tên</TableHead>
-                  <TableHead>Số điện thoại</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Địa chỉ</TableHead>
-                  <TableHead className="text-right">Số đơn</TableHead>
-                  <TableHead className="text-right">Tổng chi tiêu</TableHead>
-                  <TableHead className="text-right">Phiếu SC</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={9}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      Chưa có khách hàng.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {customers.map((c) => {
-                  const totalSpent = c.sales.reduce((s, x) => s + x.total, 0);
-                  return (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-mono text-xs">
-                        {c.code}
-                      </TableCell>
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {c.phone}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {c.email || "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {c.address || "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {c.sales.length}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatVND(totalSpent)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {c.serviceTickets.length}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(c.createdAt)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+        <CardContent className="p-3">
+          {customers.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              Chưa có khách hàng nào.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+              {customers.map((c) => {
+                const spent = c.sales.reduce((s, x) => s + x.total, 0);
+                const initials = c.name
+                  .split(" ")
+                  .filter(Boolean)
+                  .slice(-2)
+                  .map((p) => p[0])
+                  .join("")
+                  .toUpperCase();
+                return (
+                  <div
+                    key={c.id}
+                    className="rounded-md border bg-card hover:border-primary/60 hover:shadow-sm transition-all p-3"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="size-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm">
+                        {initials || <Users className="size-4" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-sm truncate">
+                            {c.name}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] h-4 px-1 font-mono"
+                          >
+                            {c.code}
+                          </Badge>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground flex items-center gap-1 font-mono">
+                          <Phone className="size-3" />
+                          {c.phone}
+                        </div>
+                        {c.email && (
+                          <div className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+                            <Mail className="size-3 shrink-0" />
+                            <span className="truncate">{c.email}</span>
+                          </div>
+                        )}
+                        {c.address && (
+                          <div className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+                            <MapPin className="size-3 shrink-0" />
+                            <span className="truncate">{c.address}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+                      <Stat
+                        icon={<ShoppingCart className="size-3" />}
+                        label="HD"
+                        value={String(c.sales.length)}
+                      />
+                      <Stat
+                        icon={<Wrench className="size-3" />}
+                        label="HDSC"
+                        value={String(c.serviceTickets.length)}
+                      />
+                      <Stat
+                        icon={<TrendingUp className="size-3" />}
+                        label="Chi tiêu"
+                        value={
+                          spent > 0 ? formatVND(spent).replace(" ₫", "") : "0"
+                        }
+                        tone="primary"
+                      />
+                    </div>
+                    <div className="mt-2 text-[10px] text-muted-foreground">
+                      Tham gia {formatDate(c.createdAt)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function Kpi({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone?: "primary";
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <div
+          className={`size-10 rounded-md flex items-center justify-center ${
+            tone === "primary"
+              ? "bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] text-muted-foreground uppercase tracking-wide">
+            {label}
+          </div>
+          <div className="text-base font-bold truncate">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone?: "primary";
+}) {
+  return (
+    <div
+      className={`rounded border px-1.5 py-1 ${
+        tone === "primary" ? "bg-primary/5 border-primary/20" : "bg-muted/30"
+      }`}
+    >
+      <div className="text-[9px] text-muted-foreground uppercase tracking-wide flex items-center gap-0.5">
+        {icon}
+        {label}
+      </div>
+      <div
+        className={`text-xs font-semibold truncate ${
+          tone === "primary" ? "text-primary" : ""
+        }`}
+      >
+        {value}
+      </div>
     </div>
   );
 }
