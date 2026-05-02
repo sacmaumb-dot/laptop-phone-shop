@@ -80,7 +80,7 @@ export default async function ServicePage({
             Quản lý phiếu tiếp nhận thiết bị, theo dõi tiến độ và trả máy.
           </p>
         </div>
-        <Link href="/service/new" className={buttonVariants()}>
+        <Link href="/pos" className={buttonVariants()}>
           <Plus className="size-4" />
           Phiếu sửa chữa mới
         </Link>

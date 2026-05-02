@@ -43,9 +43,11 @@ const DEVICE_TYPES = [
 export function ServiceForm({
   customers,
   technicians,
+  onCreated,
 }: {
   customers: Customer[];
   technicians: Technician[];
+  onCreated?: (info: { id: string; code: string; print: boolean }) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -137,7 +139,12 @@ export function ServiceForm({
       const res = await createServiceTicket(payload);
       if (res.ok) {
         toast.success(`Tạo phiếu ${res.code} thành công!`);
-        if (opts.print) {
+        if (onCreated) {
+          if (opts.print) {
+            window.open(`/service/${res.id}/intake?print=1`, "_blank");
+          }
+          onCreated({ id: res.id, code: res.code, print: opts.print });
+        } else if (opts.print) {
           router.push(`/service/${res.id}/intake?print=1`);
         } else {
           router.push(`/service/${res.id}`);

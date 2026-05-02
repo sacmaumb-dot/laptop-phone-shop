@@ -81,10 +81,14 @@ export function PosClient({
   products,
   categories,
   customers,
+  onCreated,
+  showHeader = true,
 }: {
   products: Product[];
   categories: Category[];
   customers: Customer[];
+  onCreated?: (info: { id: string; code: string; print: boolean }) => void;
+  showHeader?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -207,11 +211,18 @@ export function PosClient({
         setCustomer({ mode: "none" });
         setOpenCheckout(false);
         setOpenCart(false);
-        router.refresh();
-        if (opts.print) {
-          router.push(`/sales/${res.id}?print=1`);
+        if (onCreated) {
+          if (opts.print) {
+            window.open(`/sales/${res.id}?print=1`, "_blank");
+          }
+          onCreated({ id: res.id, code: res.code, print: opts.print });
         } else {
-          router.push(`/sales/${res.id}`);
+          router.refresh();
+          if (opts.print) {
+            router.push(`/sales/${res.id}?print=1`);
+          } else {
+            router.push(`/sales/${res.id}`);
+          }
         }
       } else {
         toast.error(res.error || "Có lỗi xảy ra");
@@ -222,12 +233,14 @@ export function PosClient({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       <div className="space-y-4 min-w-0">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Bán hàng</h1>
-          <p className="text-xs text-muted-foreground">
-            Chọn sản phẩm để thêm vào giỏ hàng.
-          </p>
-        </div>
+        {showHeader && (
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Bán hàng</h1>
+            <p className="text-xs text-muted-foreground">
+              Chọn sản phẩm để thêm vào giỏ hàng.
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <div className="relative">

@@ -109,7 +109,7 @@ export default async function DashboardPage() {
             <ShoppingCart className="size-4" />
             Bán hàng
           </Link>
-          <Link href="/service/new" className={buttonVariants({ variant: "outline" })}>
+          <Link href="/pos" className={buttonVariants({ variant: "outline" })}>
             <Wrench className="size-4" />
             Phiếu sửa chữa
           </Link>

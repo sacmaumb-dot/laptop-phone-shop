@@ -40,12 +40,12 @@ import type { SessionUser } from "@/lib/auth";
 
 const navMain = [
   { title: "Tổng quan", url: "/", icon: LayoutDashboard },
-  { title: "Bán hàng", url: "/pos", icon: ShoppingCart },
-  { title: "Sửa chữa & Dịch vụ", url: "/service", icon: Wrench },
+  { title: "Bán hàng & Sửa chữa", url: "/pos", icon: ShoppingCart },
 ];
 
 const navOps = [
   { title: "Hoá đơn bán hàng", url: "/sales", icon: ShoppingCart },
+  { title: "Phiếu sửa chữa", url: "/service", icon: Wrench },
 ];
 
 const navData = [

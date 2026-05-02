@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { PosClient } from "./pos-client";
+import { WorkspaceClient } from "./workspace-client";
 
 export default async function PosPage() {
-  const [products, categories, customers] = await Promise.all([
+  const [products, categories, customers, technicians] = await Promise.all([
     prisma.product.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -13,27 +13,41 @@ export default async function PosPage() {
       orderBy: { name: "asc" },
       take: 200,
     }),
+    prisma.user.findMany({
+      where: { role: { in: ["technician", "admin"] }, active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   return (
-    <PosClient
-      products={products.map((p) => ({
-        id: p.id,
-        sku: p.sku,
-        name: p.name,
-        brand: p.brand,
-        price: p.price,
-        stock: p.stock,
-        categoryType: p.category.type,
-        categoryId: p.categoryId,
-      }))}
-      categories={categories}
-      customers={customers.map((c) => ({
-        id: c.id,
-        name: c.name,
-        phone: c.phone,
-        code: c.code,
-      }))}
-    />
+    <div className="space-y-3">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight">Bán hàng & Sửa chữa</h1>
+        <p className="text-xs text-muted-foreground">
+          Mở nhiều tab để xử lý song song nhiều đơn bán hàng và phiếu nhận máy.
+        </p>
+      </div>
+      <WorkspaceClient
+        products={products.map((p) => ({
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          brand: p.brand,
+          price: p.price,
+          stock: p.stock,
+          categoryType: p.category.type,
+          categoryId: p.categoryId,
+        }))}
+        categories={categories}
+        customers={customers.map((c) => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          code: c.code,
+        }))}
+        technicians={technicians}
+      />
+    </div>
   );
 }
