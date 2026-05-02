@@ -19,7 +19,7 @@ export async function createServiceTicket(input: {
     appearance: string | null;
     problem: string;
   };
-  items: { description: string; quantity: number; unitPrice: number }[];
+  items: { productId: string | null; description: string; quantity: number; unitPrice: number }[];
   estimatedCost: number;
   deposit: number;
   assignedToId: string | null;
@@ -85,6 +85,7 @@ export async function createServiceTicket(input: {
         status: "received",
         items: {
           create: input.items.map((i) => ({
+            productId: i.productId,
             description: i.description,
             quantity: i.quantity,
             unitPrice: i.unitPrice,
@@ -262,5 +263,66 @@ export async function deliverService(input: {
   } catch (e) {
     console.error(e);
     return { ok: false as const, error: "Trả máy thất bại" };
+  }
+}
+
+export async function getTicketForTab(id: string) {
+  try {
+    await requireSession();
+    const ticket = await prisma.serviceTicket.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        createdBy: true,
+        assignedTo: true,
+        items: { include: { product: true } },
+      },
+    });
+    if (!ticket) return { ok: false as const, error: "Phiếu không tồn tại" };
+    return {
+      ok: true as const,
+      ticket: {
+        id: ticket.id,
+        code: ticket.code,
+        status: ticket.status,
+        customer: {
+          id: ticket.customer.id,
+          name: ticket.customer.name,
+          phone: ticket.customer.phone,
+          code: ticket.customer.code,
+        },
+        deviceType: ticket.deviceType,
+        deviceBrand: ticket.deviceBrand,
+        deviceModel: ticket.deviceModel,
+        imei: ticket.imei,
+        accessories: ticket.accessories,
+        appearance: ticket.appearance,
+        problem: ticket.problem,
+        diagnosis: ticket.diagnosis,
+        solution: ticket.solution,
+        estimatedCost: ticket.estimatedCost,
+        finalCost: ticket.finalCost,
+        paid: ticket.paid,
+        deposit: ticket.deposit,
+        warranty: ticket.warranty,
+        assignedToId: ticket.assignedToId,
+        promisedAt: ticket.promisedAt
+          ? ticket.promisedAt.toISOString().slice(0, 16)
+          : null,
+        note: ticket.note,
+        receivedAt: ticket.receivedAt.toISOString(),
+        items: ticket.items.map((it) => ({
+          id: it.id,
+          description: it.description,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          subtotal: it.subtotal,
+          productId: it.productId,
+        })),
+      },
+    };
+  } catch (e) {
+    console.error(e);
+    return { ok: false as const, error: "Lỗi tải phiếu" };
   }
 }

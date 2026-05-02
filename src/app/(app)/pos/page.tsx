@@ -22,12 +22,6 @@ export default async function PosPage() {
 
   return (
     <div className="space-y-3">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">Bán hàng & Sửa chữa</h1>
-        <p className="text-xs text-muted-foreground">
-          Mở nhiều tab để xử lý song song nhiều đơn bán hàng và phiếu nhận máy.
-        </p>
-      </div>
       <WorkspaceClient
         products={products.map((p) => ({
           id: p.id,

@@ -268,7 +268,7 @@ export function PosClient({
           </Tabs>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
           {filtered.map((p) => (
             <button
               key={p.id}
@@ -276,36 +276,34 @@ export function PosClient({
               disabled={p.stock <= 0 && p.categoryType !== "service"}
               className="text-left disabled:opacity-50 disabled:cursor-not-allowed group"
             >
-              <Card className="h-full transition-all hover:border-primary/50 hover:shadow-md group-hover:-translate-y-0.5">
-                <CardContent className="p-3 flex flex-col h-full gap-2">
-                  <div className="aspect-square bg-muted/40 rounded-md flex items-center justify-center text-muted-foreground">
-                    {CATEGORY_ICONS[p.categoryType] || (
-                      <PackageIcon className="size-8" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="text-xs text-muted-foreground font-mono">
+              <div className="rounded-md border bg-card hover:border-primary/60 hover:shadow-sm transition-all flex items-center gap-2.5 p-2.5">
+                <div className="size-10 shrink-0 rounded bg-muted/60 flex items-center justify-center text-muted-foreground">
+                  {CATEGORY_ICONS[p.categoryType] || (
+                    <PackageIcon className="size-4" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground font-mono">
                       {p.sku}
-                    </div>
-                    <div className="text-sm font-medium leading-snug line-clamp-2">
-                      {p.name}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-bold text-primary">
-                      {formatVND(p.price)}
-                    </div>
+                    </span>
                     {p.categoryType !== "service" && (
                       <Badge
                         variant={p.stock <= 0 ? "destructive" : "secondary"}
-                        className="text-[10px]"
+                        className="text-[9px] h-4 px-1"
                       >
-                        {p.stock <= 0 ? "Hết" : `Còn ${p.stock}`}
+                        {p.stock <= 0 ? "Hết" : `${p.stock}`}
                       </Badge>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="text-xs font-medium leading-snug line-clamp-1">
+                    {p.name}
+                  </div>
+                  <div className="text-xs font-bold text-primary mt-0.5">
+                    {formatVND(p.price)}
+                  </div>
+                </div>
+              </div>
             </button>
           ))}
           {filtered.length === 0 && (

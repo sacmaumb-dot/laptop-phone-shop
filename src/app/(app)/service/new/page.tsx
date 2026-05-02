@@ -2,11 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { ServiceForm } from "../service-form";
 
 export default async function NewServicePage() {
-  const [customers, technicians] = await Promise.all([
+  const [customers, technicians, products] = await Promise.all([
     prisma.customer.findMany({ orderBy: { name: "asc" }, take: 500 }),
     prisma.user.findMany({
       where: { active: true, role: { in: ["technician", "admin"] } },
       orderBy: { name: "asc" },
+    }),
+    prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      include: { category: true },
     }),
   ]);
   return (
@@ -27,6 +32,13 @@ export default async function NewServicePage() {
           phone: c.phone,
         }))}
         technicians={technicians.map((t) => ({ id: t.id, name: t.name }))}
+        products={products.map((p) => ({
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          price: p.price,
+          categoryType: p.category.type,
+        }))}
       />
     </div>
   );

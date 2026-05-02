@@ -22,7 +22,7 @@ export function LoginForm() {
       const res = await loginAction(email, password);
       if (res.ok) {
         toast.success("Đăng nhập thành công");
-        router.push(searchParams.get("from") || "/");
+        router.push(searchParams.get("from") || "/pos");
         router.refresh();
       } else {
         toast.error(res.error || "Đăng nhập thất bại");

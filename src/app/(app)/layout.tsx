@@ -1,13 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { AppSidebar } from "@/components/app-sidebar";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+import { AppHeader } from "@/components/app-header";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({
   children,
@@ -17,21 +12,32 @@ export default async function AppLayout({
   const user = await getSession();
   if (!user) redirect("/login");
 
+  const tickets = await prisma.serviceTicket.findMany({
+    where: {
+      status: { notIn: ["delivered", "cancelled"] },
+    },
+    orderBy: { createdAt: "desc" },
+    include: { customer: true },
+    take: 30,
+  });
+
+  const pendingTickets = tickets.map((t) => ({
+    id: t.id,
+    code: t.code,
+    customerName: t.customer.name,
+    deviceLabel: [t.deviceBrand, t.deviceModel].filter(Boolean).join(" ") ||
+      t.deviceType,
+    status: t.status,
+  }));
+
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        <AppSidebar user={user} />
-        <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <div id="page-header" className="flex-1" />
-          </header>
-          <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-[1600px] w-full mx-auto">
-            {children}
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+      <div className="min-h-screen flex flex-col">
+        <AppHeader user={user} pendingTickets={pendingTickets} />
+        <main className="flex-1 p-4 sm:p-5 max-w-[1600px] w-full mx-auto">
+          {children}
+        </main>
+      </div>
     </TooltipProvider>
   );
 }

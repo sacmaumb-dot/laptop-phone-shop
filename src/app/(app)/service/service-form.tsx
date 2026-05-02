@@ -18,6 +18,10 @@ import {
   CustomerPhoneField,
   type CustomerSelection,
 } from "@/components/customer-phone-field";
+import {
+  ProductPickerInput,
+  type PickerProduct,
+} from "@/components/product-picker-input";
 import { toast } from "sonner";
 import { Loader2, Plus, Save, Trash2, Wrench, Printer } from "lucide-react";
 import { createServiceTicket } from "./actions";
@@ -28,6 +32,7 @@ type Technician = { id: string; name: string };
 
 type ServiceItemDraft = {
   id: string;
+  productId: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -43,10 +48,12 @@ const DEVICE_TYPES = [
 export function ServiceForm({
   customers,
   technicians,
+  products,
   onCreated,
 }: {
   customers: Customer[];
   technicians: Technician[];
+  products: PickerProduct[];
   onCreated?: (info: { id: string; code: string; print: boolean }) => void;
 }) {
   const router = useRouter();
@@ -62,7 +69,13 @@ export function ServiceForm({
     problem: "",
   });
   const [items, setItems] = useState<ServiceItemDraft[]>([
-    { id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0 },
+    {
+      id: crypto.randomUUID(),
+      productId: null,
+      description: "",
+      quantity: 1,
+      unitPrice: 0,
+    },
   ]);
   const [deposit, setDeposit] = useState<string>("");
   const [assignedToId, setAssignedToId] = useState<string>("");
@@ -76,7 +89,13 @@ export function ServiceForm({
   function addItem() {
     setItems((curr) => [
       ...curr,
-      { id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0 },
+      {
+        id: crypto.randomUUID(),
+        productId: null,
+        description: "",
+        quantity: 1,
+        unitPrice: 0,
+      },
     ]);
   }
   function updateItem(id: string, patch: Partial<ServiceItemDraft>) {
@@ -104,6 +123,14 @@ export function ServiceForm({
       toast.error("Vui lòng nhập tên khách hàng mới");
       return;
     }
+    if (!device.brand.trim()) {
+      toast.error("Vui lòng nhập hãng máy");
+      return;
+    }
+    if (!device.model.trim()) {
+      toast.error("Vui lòng nhập model máy");
+      return;
+    }
     if (!device.problem.trim()) {
       toast.error("Vui lòng mô tả tình trạng / yêu cầu");
       return;
@@ -124,6 +151,7 @@ export function ServiceForm({
         problem: device.problem.trim(),
       },
       items: validItems.map((i) => ({
+        productId: i.productId,
         description: i.description.trim(),
         quantity: i.quantity,
         unitPrice: i.unitPrice,
@@ -186,18 +214,20 @@ export function ServiceForm({
                 className="w-full"
               />
             </Field>
-            <Field label="Hãng">
+            <Field label="Hãng *">
               <Input
                 value={device.brand}
                 onChange={(e) => setDev("brand", e.target.value)}
                 placeholder="Apple, Dell, Samsung..."
+                required
               />
             </Field>
-            <Field label="Model">
+            <Field label="Model *">
               <Input
                 value={device.model}
                 onChange={(e) => setDev("model", e.target.value)}
                 placeholder="Latitude 7470, iPhone 13..."
+                required
               />
             </Field>
             <Field label="IMEI / Serial">
@@ -234,7 +264,7 @@ export function ServiceForm({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="overflow-visible">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Báo giá dịch vụ</CardTitle>
@@ -257,13 +287,26 @@ export function ServiceForm({
               className="grid grid-cols-12 gap-2 items-start"
             >
               <div className="col-span-12 sm:col-span-6">
-                <Input
+                <ProductPickerInput
+                  products={products}
                   value={item.description}
-                  onChange={(e) =>
-                    updateItem(item.id, { description: e.target.value })
+                  onTextChange={(text) =>
+                    updateItem(item.id, {
+                      description: text,
+                      productId: null,
+                    })
+                  }
+                  onSelect={(p) =>
+                    updateItem(item.id, {
+                      productId: p.id,
+                      description: p.name,
+                      unitPrice: p.price,
+                    })
                   }
                   placeholder={
-                    idx === 0 ? "VD: Cài Windows 10" : "Dịch vụ..."
+                    idx === 0
+                      ? "Tìm dịch vụ / sản phẩm trong kho..."
+                      : "Tìm dịch vụ..."
                   }
                 />
               </div>
