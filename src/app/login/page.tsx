@@ -50,23 +50,6 @@ export default function LoginPage() {
           <Suspense fallback={null}>
             <LoginForm />
           </Suspense>
-          <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground space-y-1">
-            <div className="font-medium text-foreground mb-1">
-              Tài khoản demo:
-            </div>
-            <div>
-              <span className="font-mono">admin@shop.vn</span> / admin123
-              <span className="text-primary ml-1">(Quản trị)</span>
-            </div>
-            <div>
-              <span className="font-mono">staff@shop.vn</span> / staff123
-              <span className="text-primary ml-1">(Nhân viên)</span>
-            </div>
-            <div>
-              <span className="font-mono">tech@shop.vn</span> / tech123
-              <span className="text-primary ml-1">(Kỹ thuật viên)</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
