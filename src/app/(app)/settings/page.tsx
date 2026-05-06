@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { requireShopSession } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { SettingsForm } from "./settings-form";
 
 export default async function SettingsPage() {
-  const session = await getSession();
-  if (!session || session.role !== "admin") redirect("/");
-  const settings = await getSettings();
+  const session = await requireShopSession();
+  if (session.role !== "admin") redirect("/dashboard");
+  const settings = await getSettings(session.shopId);
 
   return (
     <div className="space-y-4">

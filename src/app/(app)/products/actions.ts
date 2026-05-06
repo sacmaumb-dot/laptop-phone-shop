@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
+import { requireShopSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function createProduct(data: {
@@ -16,9 +16,15 @@ export async function createProduct(data: {
   description?: string;
 }) {
   try {
-    await requireSession();
+    const session = await requireShopSession();
+    const cat = await prisma.category.findFirst({
+      where: { id: data.categoryId, shopId: session.shopId },
+      select: { id: true },
+    });
+    if (!cat) return { ok: false as const, error: "Danh mục không hợp lệ" };
     await prisma.product.create({
       data: {
+        shopId: session.shopId,
         sku: data.sku,
         name: data.name,
         brand: data.brand || null,
@@ -58,7 +64,17 @@ export async function updateProduct(
   },
 ) {
   try {
-    await requireSession();
+    const session = await requireShopSession();
+    const existing = await prisma.product.findFirst({
+      where: { id, shopId: session.shopId },
+      select: { id: true },
+    });
+    if (!existing) return { ok: false as const, error: "Sản phẩm không tồn tại" };
+    const cat = await prisma.category.findFirst({
+      where: { id: data.categoryId, shopId: session.shopId },
+      select: { id: true },
+    });
+    if (!cat) return { ok: false as const, error: "Danh mục không hợp lệ" };
     await prisma.product.update({
       where: { id },
       data: {
@@ -88,7 +104,12 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string) {
   try {
-    await requireSession();
+    const session = await requireShopSession();
+    const existing = await prisma.product.findFirst({
+      where: { id, shopId: session.shopId },
+      select: { id: true },
+    });
+    if (!existing) return { ok: false as const, error: "Sản phẩm không tồn tại" };
     await prisma.product.update({
       where: { id },
       data: { isActive: false },

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import {
   Card,
   CardContent,
@@ -43,6 +44,8 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ tab?: string; date?: string }>;
 }) {
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const sp = await searchParams;
   const tab = sp.tab === "shifts" ? "shifts" : "overview";
   const dateStr = sp.date || new Date().toISOString().slice(0, 10);
@@ -50,13 +53,13 @@ export default async function ReportsPage({
   if (tab === "shifts") {
     return (
       <ReportsLayout active="shifts">
-        <ShiftsTab date={dateStr} />
+        <ShiftsTab date={dateStr} shopId={shopId} />
       </ReportsLayout>
     );
   }
   return (
     <ReportsLayout active="overview">
-      <OverviewTab />
+      <OverviewTab shopId={shopId} />
     </ReportsLayout>
   );
 }
@@ -82,7 +85,7 @@ function ReportsLayout({
   );
 }
 
-async function ShiftsTab({ date }: { date: string }) {
+async function ShiftsTab({ date, shopId }: { date: string; shopId: string }) {
   // Build day range from local date (server-local = same as TZ used elsewhere)
   const start = new Date(date + "T00:00:00");
   const end = new Date(start);
@@ -90,19 +93,20 @@ async function ShiftsTab({ date }: { date: string }) {
 
   const [sales, tickets, users] = await Promise.all([
     prisma.sale.findMany({
-      where: { createdAt: { gte: start, lt: end }, status: "paid" },
+      where: { shopId, createdAt: { gte: start, lt: end }, status: "paid" },
       include: { customer: true, user: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.serviceTicket.findMany({
       where: {
+        shopId,
         deliveredAt: { gte: start, lt: end },
         status: "delivered",
       },
       include: { customer: true, createdBy: true },
       orderBy: { deliveredAt: "asc" },
     }),
-    prisma.user.findMany({ orderBy: { name: "asc" } }),
+    prisma.user.findMany({ where: { shopId }, orderBy: { name: "asc" } }),
   ]);
 
   const userMap = new Map(users.map((u) => [u.id, u]));
@@ -196,7 +200,7 @@ async function ShiftsTab({ date }: { date: string }) {
   );
 }
 
-async function OverviewTab() {
+async function OverviewTab({ shopId }: { shopId: string }) {
   const now = new Date();
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -212,16 +216,17 @@ async function OverviewTab() {
     paymentBreakdown,
   ] = await Promise.all([
     prisma.sale.aggregate({
-      where: { createdAt: { gte: today }, status: "paid" },
+      where: { shopId, createdAt: { gte: today }, status: "paid" },
       _sum: { total: true },
     }),
     prisma.sale.aggregate({
-      where: { createdAt: { gte: startOfMonth }, status: "paid" },
+      where: { shopId, createdAt: { gte: startOfMonth }, status: "paid" },
       _sum: { total: true },
       _count: true,
     }),
     prisma.serviceTicket.aggregate({
       where: {
+        shopId,
         deliveredAt: { gte: startOfMonth },
         status: "delivered",
       },
@@ -229,20 +234,20 @@ async function OverviewTab() {
       _count: true,
     }),
     prisma.sale.findMany({
-      where: { createdAt: { gte: last30 }, status: "paid" },
+      where: { shopId, createdAt: { gte: last30 }, status: "paid" },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true, total: true },
     }),
     prisma.saleItem.groupBy({
       by: ["productId"],
-      where: { sale: { createdAt: { gte: startOfMonth }, status: "paid" } },
+      where: { sale: { shopId, createdAt: { gte: startOfMonth }, status: "paid" } },
       _sum: { quantity: true, subtotal: true },
       orderBy: { _sum: { subtotal: "desc" } },
       take: 10,
     }),
     prisma.sale.groupBy({
       by: ["paymentMethod"],
-      where: { createdAt: { gte: startOfMonth }, status: "paid" },
+      where: { shopId, createdAt: { gte: startOfMonth }, status: "paid" },
       _sum: { total: true },
       _count: true,
     }),
@@ -250,7 +255,7 @@ async function OverviewTab() {
 
   const productIds = topProducts.map((p) => p.productId);
   const productDetails = await prisma.product.findMany({
-    where: { id: { in: productIds } },
+    where: { id: { in: productIds }, shopId },
   });
   const productMap = Object.fromEntries(productDetails.map((p) => [p.id, p]));
 

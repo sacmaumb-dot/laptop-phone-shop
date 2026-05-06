@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
+import { requireShopSession } from "@/lib/auth";
 
 export type SearchHit = {
   kind: "ticket" | "sale" | "customer" | "product";
@@ -17,13 +17,15 @@ export async function globalSearch(query: string): Promise<{
   ok: true;
   hits: SearchHit[];
 }> {
-  await requireSession();
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const q = query.trim();
   if (q.length < 2) return { ok: true, hits: [] };
 
   const [tickets, sales, customers, products] = await Promise.all([
     prisma.serviceTicket.findMany({
       where: {
+        shopId,
         OR: [
           { code: { contains: q } },
           { customer: { name: { contains: q } } },
@@ -39,6 +41,7 @@ export async function globalSearch(query: string): Promise<{
     }),
     prisma.sale.findMany({
       where: {
+        shopId,
         OR: [
           { code: { contains: q } },
           { customer: { name: { contains: q } } },
@@ -51,6 +54,7 @@ export async function globalSearch(query: string): Promise<{
     }),
     prisma.customer.findMany({
       where: {
+        shopId,
         OR: [
           { name: { contains: q } },
           { phone: { contains: q } },
@@ -63,6 +67,7 @@ export async function globalSearch(query: string): Promise<{
     }),
     prisma.product.findMany({
       where: {
+        shopId,
         isActive: true,
         OR: [
           { name: { contains: q } },

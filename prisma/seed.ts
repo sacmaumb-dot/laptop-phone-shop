@@ -6,15 +6,59 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding...");
 
-  // Users
+  // ----------------------------------------------------------------
+  // SUPERADMIN — global SaaS owner, no shop
+  // ----------------------------------------------------------------
+  const superPwd = await bcrypt.hash("supersecret123", 10);
+  await prisma.user.upsert({
+    where: { email: "owner@mypos.app" },
+    update: {},
+    create: {
+      email: "owner@mypos.app",
+      name: "MyPOS Owner",
+      password: superPwd,
+      role: "superadmin",
+      shopId: null,
+    },
+  });
+
+  // ----------------------------------------------------------------
+  // DEMO SHOP — sample tenant with full demo data
+  // ----------------------------------------------------------------
+  const demoShop = await prisma.shop.upsert({
+    where: { subdomain: "demo" },
+    update: {},
+    create: {
+      subdomain: "demo",
+      name: "Cửa hàng Demo",
+      ownerEmail: "admin@shop.vn",
+      status: "active",
+    },
+  });
+
+  await prisma.appSetting.upsert({
+    where: { shopId: demoShop.id },
+    update: {},
+    create: {
+      shopId: demoShop.id,
+      shopName: "Cửa hàng Demo",
+      siteTitle: "MyPOS - Cửa hàng Demo",
+      shopTagline: "Laptop & Điện thoại",
+      shopAddress: "484A Lê Văn Việt, Q.9, TP.HCM",
+      shopPhone: "0865045846",
+    },
+  });
+
+  // Users for demo shop
   const adminPwd = await bcrypt.hash("admin123", 10);
   const staffPwd = await bcrypt.hash("staff123", 10);
   const techPwd = await bcrypt.hash("tech123", 10);
 
   await prisma.user.upsert({
     where: { email: "admin@shop.vn" },
-    update: {},
+    update: { shopId: demoShop.id },
     create: {
+      shopId: demoShop.id,
       email: "admin@shop.vn",
       name: "Quản trị viên",
       password: adminPwd,
@@ -23,8 +67,9 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { email: "staff@shop.vn" },
-    update: {},
+    update: { shopId: demoShop.id },
     create: {
+      shopId: demoShop.id,
       email: "staff@shop.vn",
       name: "Nguyễn Văn A",
       password: staffPwd,
@@ -33,8 +78,9 @@ async function main() {
   });
   const tech = await prisma.user.upsert({
     where: { email: "tech@shop.vn" },
-    update: {},
+    update: { shopId: demoShop.id },
     create: {
+      shopId: demoShop.id,
       email: "tech@shop.vn",
       name: "Trần KTV",
       password: techPwd,
@@ -52,9 +98,9 @@ async function main() {
   const catMap: Record<string, string> = {};
   for (const c of cats) {
     const cat = await prisma.category.upsert({
-      where: { slug: c.slug },
+      where: { shopId_slug: { shopId: demoShop.id, slug: c.slug } },
       update: {},
-      create: c,
+      create: { ...c, shopId: demoShop.id },
     });
     catMap[c.slug] = cat.id;
   }
@@ -232,9 +278,9 @@ async function main() {
 
   for (const p of products) {
     await prisma.product.upsert({
-      where: { sku: p.sku },
+      where: { shopId_sku: { shopId: demoShop.id, sku: p.sku } },
       update: {},
-      create: p,
+      create: { ...p, shopId: demoShop.id },
     });
   }
 
@@ -275,20 +321,24 @@ async function main() {
   ];
   for (const c of customers) {
     await prisma.customer.upsert({
-      where: { phone: c.phone },
+      where: { shopId_phone: { shopId: demoShop.id, phone: c.phone } },
       update: {},
-      create: c,
+      create: { ...c, shopId: demoShop.id },
     });
   }
 
   // Demo sales
-  const allProducts = await prisma.product.findMany();
-  const allCustomers = await prisma.customer.findMany();
+  const allProducts = await prisma.product.findMany({
+    where: { shopId: demoShop.id },
+  });
+  const allCustomers = await prisma.customer.findMany({
+    where: { shopId: demoShop.id },
+  });
   const admin = await prisma.user.findUnique({
     where: { email: "admin@shop.vn" },
   });
 
-  if (admin && (await prisma.sale.count()) === 0) {
+  if (admin && (await prisma.sale.count({ where: { shopId: demoShop.id } })) === 0) {
     for (let i = 0; i < 10; i++) {
       const items = [
         allProducts[Math.floor(Math.random() * allProducts.length)],
@@ -300,6 +350,7 @@ async function main() {
       const createdAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
       await prisma.sale.create({
         data: {
+          shopId: demoShop.id,
           code: `HD${String(i + 1).padStart(5, "0")}`,
           subtotal,
           total,
@@ -323,7 +374,10 @@ async function main() {
   }
 
   // Demo service tickets
-  if (admin && (await prisma.serviceTicket.count()) === 0) {
+  if (
+    admin &&
+    (await prisma.serviceTicket.count({ where: { shopId: demoShop.id } })) === 0
+  ) {
     const sampleTickets = [
       {
         deviceType: "phone",
@@ -383,6 +437,7 @@ async function main() {
       const receivedAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
       await prisma.serviceTicket.create({
         data: {
+          shopId: demoShop.id,
           code: `SC${String(i + 1).padStart(5, "0")}`,
           ...t,
           customerId: cust.id,
@@ -398,7 +453,7 @@ async function main() {
     }
   }
 
-  console.log("Seed complete.");
+  console.log("Seed complete. Shop:", demoShop.subdomain);
 }
 
 main()

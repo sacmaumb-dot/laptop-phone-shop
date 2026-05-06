@@ -1,19 +1,21 @@
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
+import { requireShopSession } from "@/lib/auth";
 import { StockClient } from "./stock-client";
 
 export const metadata = { title: "Quản lý kho" };
 
 export default async function StockPage() {
-  await requireSession();
+  const session = await requireShopSession();
+  const shopId = session.shopId;
 
   const [products, movements] = await Promise.all([
     prisma.product.findMany({
-      where: { isActive: true },
+      where: { shopId, isActive: true },
       include: { category: true },
       orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
     }),
     prisma.stockMovement.findMany({
+      where: { shopId },
       orderBy: { createdAt: "desc" },
       take: 100,
       include: {

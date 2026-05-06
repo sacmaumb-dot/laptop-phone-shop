@@ -7,10 +7,10 @@ import bcrypt from "bcryptjs";
 
 async function requireAdmin() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  if (!session || session.role !== "admin" || !session.shopId) {
     return null;
   }
-  return session;
+  return session as typeof session & { shopId: string };
 }
 
 export async function createUser(data: {
@@ -25,6 +25,7 @@ export async function createUser(data: {
     const hash = await bcrypt.hash(data.password, 10);
     await prisma.user.create({
       data: {
+        shopId: s.shopId,
         name: data.name,
         email: data.email,
         password: hash,
@@ -71,6 +72,11 @@ export async function updateUser(
     if (data.password && data.password.trim()) {
       update.password = await bcrypt.hash(data.password, 10);
     }
+    const owned = await prisma.user.findFirst({
+      where: { id, shopId: s.shopId },
+      select: { id: true },
+    });
+    if (!owned) return { ok: false as const, error: "Không tìm thấy" };
     await prisma.user.update({ where: { id }, data: update });
     revalidatePath("/users");
     return { ok: true as const };
@@ -94,8 +100,8 @@ export async function deleteUser(id: string) {
         error: "Không thể xoá tài khoản đang đăng nhập",
       };
     }
-    const used = await prisma.user.findUnique({
-      where: { id },
+    const used = await prisma.user.findFirst({
+      where: { id, shopId: s.shopId },
       include: {
         sales: { select: { id: true }, take: 1 },
         serviceTickets: { select: { id: true }, take: 1 },

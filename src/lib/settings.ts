@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { unstable_cache } from "next/cache";
+import { getShopFromSubdomain } from "./tenant";
 
 export type AppSettings = {
   shopName: string;
@@ -14,8 +15,8 @@ export type AppSettings = {
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  shopName: "TechShop",
-  siteTitle: "TechShop - Quản lý cửa hàng Laptop & Điện thoại",
+  shopName: "MyPOS",
+  siteTitle: "MyPOS - Quản lý cửa hàng",
   shopTagline: "Laptop & Điện thoại",
   shopAddress: null,
   shopPhone: null,
@@ -25,8 +26,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   printSize: "A4",
 };
 
-async function loadSettingsRaw(): Promise<AppSettings> {
-  const s = await prisma.appSetting.findUnique({ where: { id: "singleton" } });
+async function loadSettingsRaw(shopId: string): Promise<AppSettings> {
+  const s = await prisma.appSetting.findUnique({ where: { shopId } });
   if (!s) return DEFAULT_SETTINGS;
   return {
     shopName: s.shopName,
@@ -41,6 +42,30 @@ async function loadSettingsRaw(): Promise<AppSettings> {
   };
 }
 
-export const getSettings = unstable_cache(loadSettingsRaw, ["app-settings"], {
-  tags: ["app-settings"],
-});
+/**
+ * Per-shop settings, cached by shopId. Use settingsTag(shopId) when calling
+ * revalidateTag from a server action that mutates settings.
+ */
+export function getSettings(shopId: string): Promise<AppSettings> {
+  const cached = unstable_cache(
+    () => loadSettingsRaw(shopId),
+    ["app-settings", shopId],
+    { tags: [settingsTag(shopId)] },
+  );
+  return cached();
+}
+
+export function settingsTag(shopId: string): string {
+  return `app-settings:${shopId}`;
+}
+
+/**
+ * Resolve settings for the request. If a shop subdomain is present and matches
+ * a shop, returns that shop's settings; otherwise returns brand defaults
+ * (used for landing/marketing pages).
+ */
+export async function getRequestSettings(): Promise<AppSettings> {
+  const shop = await getShopFromSubdomain();
+  if (shop) return getSettings(shop.id);
+  return DEFAULT_SETTINGS;
+}

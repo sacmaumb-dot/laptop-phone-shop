@@ -77,7 +77,7 @@ export function AppHeader({
   }, [pendingTickets, pendingQ]);
 
   const navData = [
-    { title: "Tổng quan", url: "/", icon: LayoutDashboard },
+    { title: "Tổng quan", url: "/dashboard", icon: LayoutDashboard },
     { title: "Hoá đơn bán hàng", url: "/sales", icon: Receipt },
     { title: "Phiếu sửa chữa", url: "/service", icon: Wrench },
     { title: "Sản phẩm / Kho", url: "/products", icon: Package },

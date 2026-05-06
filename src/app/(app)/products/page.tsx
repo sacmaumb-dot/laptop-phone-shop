@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import type { Prisma } from "@/generated/prisma";
 import {
   Card,
@@ -36,8 +37,10 @@ export default async function ProductsPage({
 }: {
   searchParams: Promise<{ q?: string; cat?: string }>;
 }) {
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const sp = await searchParams;
-  const where: Prisma.ProductWhereInput = { isActive: true };
+  const where: Prisma.ProductWhereInput = { shopId, isActive: true };
   if (sp.q) {
     where.OR = [
       { name: { contains: sp.q } },
@@ -57,17 +60,18 @@ export default async function ProductsPage({
         include: { category: true },
         take: 200,
       }),
-      prisma.category.findMany({ orderBy: { name: "asc" } }),
-      prisma.product.count({ where: { isActive: true } }),
+      prisma.category.findMany({ where: { shopId }, orderBy: { name: "asc" } }),
+      prisma.product.count({ where: { shopId, isActive: true } }),
       prisma.product.count({
         where: {
+          shopId,
           isActive: true,
           stock: { lte: 5 },
           category: { type: { not: "service" } },
         },
       }),
       prisma.product.findMany({
-        where: { isActive: true },
+        where: { shopId, isActive: true },
         select: { stock: true, costPrice: true, category: true },
       }),
     ]);

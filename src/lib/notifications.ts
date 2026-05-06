@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 
 type CreateInput = {
+  shopId: string;
   userId: string;
   type: string;
   title: string;
@@ -9,10 +10,11 @@ type CreateInput = {
 };
 
 export async function createNotification(input: CreateInput) {
-  if (!input.userId) return;
+  if (!input.userId || !input.shopId) return;
   try {
     await prisma.notification.create({
       data: {
+        shopId: input.shopId,
         userId: input.userId,
         type: input.type,
         title: input.title,
@@ -27,7 +29,7 @@ export async function createNotification(input: CreateInput) {
 
 export async function notifyAdmins(input: Omit<CreateInput, "userId">) {
   const admins = await prisma.user.findMany({
-    where: { role: "admin", active: true },
+    where: { shopId: input.shopId, role: "admin", active: true },
     select: { id: true },
   });
   await Promise.all(

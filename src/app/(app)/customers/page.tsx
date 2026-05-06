@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import type { Prisma } from "@/generated/prisma";
 import {
   Card,
@@ -27,8 +28,10 @@ export default async function CustomersPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const sp = await searchParams;
-  const where: Prisma.CustomerWhereInput = {};
+  const where: Prisma.CustomerWhereInput = { shopId };
   if (sp.q) {
     where.OR = [
       { name: { contains: sp.q } },
@@ -48,9 +51,10 @@ export default async function CustomersPage({
       },
       take: 200,
     }),
-    prisma.customer.count(),
+    prisma.customer.count({ where: { shopId } }),
     prisma.customer.count({
       where: {
+        shopId,
         createdAt: {
           gte: new Date(new Date().setDate(new Date().getDate() - 30)),
         },

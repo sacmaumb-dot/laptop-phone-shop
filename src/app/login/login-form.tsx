@@ -13,8 +13,8 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
-  const [email, setEmail] = useState("admin@shop.vn");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +22,11 @@ export function LoginForm() {
       const res = await loginAction(email, password);
       if (res.ok) {
         toast.success("Đăng nhập thành công");
-        router.push(searchParams.get("from") || "/pos");
+        const from = searchParams.get("from");
+        // Default to /pos. Skip "/" since the homepage is the dashboard;
+        // shop staff should land on the POS workspace by default.
+        const target = from && from !== "/" ? from : "/pos";
+        router.push(target);
         router.refresh();
       } else {
         toast.error(res.error || "Đăng nhập thất bại");
@@ -41,7 +45,7 @@ export function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           autoComplete="email"
-          placeholder="admin@shop.vn"
+          placeholder="name@shop.vn"
         />
       </div>
       <div className="space-y-2">

@@ -10,7 +10,7 @@ export function proxy(req: NextRequest) {
   // Allow public paths
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     if (pathname === "/login" && session) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return NextResponse.redirect(new URL("/pos", req.url));
     }
     return NextResponse.next();
   }

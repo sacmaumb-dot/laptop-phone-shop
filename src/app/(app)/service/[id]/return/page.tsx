@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { formatVND, formatDateTime } from "@/lib/format";
@@ -28,12 +29,13 @@ export default async function ServiceReturnPrintPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ size?: string }>;
 }) {
+  const session = await requireShopSession();
   const { id } = await params;
   const sp = await searchParams;
-  const settings = await getSettings();
+  const settings = await getSettings(session.shopId);
   const size = sp.size || settings.printSize || "A4";
-  const ticket = await prisma.serviceTicket.findUnique({
-    where: { id },
+  const ticket = await prisma.serviceTicket.findFirst({
+    where: { id, shopId: session.shopId },
     include: {
       customer: true,
       createdBy: true,

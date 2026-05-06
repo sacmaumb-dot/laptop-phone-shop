@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import {
   Card,
   CardContent,
@@ -45,6 +46,8 @@ export default async function SalesPage({
 }: {
   searchParams: Promise<{ q?: string; type?: string }>;
 }) {
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const type = sp.type ?? "all";
@@ -55,6 +58,7 @@ export default async function SalesPage({
   const [sales, tickets] = await Promise.all([
     wantSale
       ? prisma.sale.findMany({
+          where: { shopId },
           orderBy: { createdAt: "desc" },
           include: {
             customer: { select: { name: true, phone: true } },
@@ -65,7 +69,7 @@ export default async function SalesPage({
       : Promise.resolve([]),
     wantService
       ? prisma.serviceTicket.findMany({
-          where: { status: "delivered" },
+          where: { shopId, status: "delivered" },
           orderBy: { deliveredAt: "desc" },
           include: {
             customer: { select: { name: true, phone: true } },

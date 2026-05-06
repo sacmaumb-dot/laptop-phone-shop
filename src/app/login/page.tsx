@@ -10,17 +10,17 @@ export default function LoginPage() {
           <div className="size-10 rounded-xl bg-white/15 flex items-center justify-center">
             <Laptop className="size-6" />
           </div>
-          TechShop
+          MyPOS
         </div>
         <div className="space-y-6">
           <h1 className="text-4xl font-bold leading-tight">
-            Hệ thống quản lý cửa hàng
+            Phần mềm quản lý
             <br />
-            Laptop & Điện thoại
+            cửa hàng Laptop & Điện thoại
           </h1>
           <p className="text-lg text-white/80 max-w-md">
-            Quản lý bán hàng, sửa chữa, dịch vụ, kho hàng và khách hàng
-            chuyên nghiệp trong một nơi duy nhất.
+            Bán hàng, sửa chữa, kho và khách hàng — tất cả trên một nền tảng SaaS
+            đơn giản, đăng ký 5 phút có cửa hàng riêng.
           </p>
           <div className="grid grid-cols-3 gap-4 pt-4 max-w-md">
             <Feature icon={<Smartphone className="size-5" />} label="POS" />
@@ -29,7 +29,7 @@ export default function LoginPage() {
           </div>
         </div>
         <p className="text-sm text-white/60">
-          © {new Date().getFullYear()} TechShop. All rights reserved.
+          © {new Date().getFullYear()} MyPOS. All rights reserved.
         </p>
       </div>
 
@@ -39,7 +39,7 @@ export default function LoginPage() {
             <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Laptop className="size-6" />
             </div>
-            TechShop
+            MyPOS
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-bold tracking-tight">Đăng nhập</h2>
@@ -50,23 +50,6 @@ export default function LoginPage() {
           <Suspense fallback={null}>
             <LoginForm />
           </Suspense>
-          <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground space-y-1">
-            <div className="font-medium text-foreground mb-1">
-              Tài khoản demo:
-            </div>
-            <div>
-              <span className="font-mono">admin@shop.vn</span> / admin123
-              <span className="text-primary ml-1">(Quản trị)</span>
-            </div>
-            <div>
-              <span className="font-mono">staff@shop.vn</span> / staff123
-              <span className="text-primary ml-1">(Nhân viên)</span>
-            </div>
-            <div>
-              <span className="font-mono">tech@shop.vn</span> / tech123
-              <span className="text-primary ml-1">(Kỹ thuật viên)</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

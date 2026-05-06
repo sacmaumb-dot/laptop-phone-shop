@@ -1,15 +1,18 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import { ServiceForm } from "../service-form";
 
 export default async function NewServicePage() {
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const [customers, technicians, products] = await Promise.all([
-    prisma.customer.findMany({ orderBy: { name: "asc" }, take: 500 }),
+    prisma.customer.findMany({ where: { shopId }, orderBy: { name: "asc" }, take: 500 }),
     prisma.user.findMany({
-      where: { active: true, role: { in: ["technician", "admin"] } },
+      where: { shopId, active: true, role: { in: ["technician", "admin"] } },
       orderBy: { name: "asc" },
     }),
     prisma.product.findMany({
-      where: { isActive: true },
+      where: { shopId, isActive: true },
       orderBy: { name: "asc" },
       include: { category: true },
     }),
