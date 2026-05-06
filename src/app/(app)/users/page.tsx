@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { requireShopSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
   Card,
@@ -32,10 +32,13 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default async function UsersPage() {
-  const session = await getSession();
-  if (!session || session.role !== "admin") redirect("/");
+  const session = await requireShopSession();
+  if (session.role !== "admin") redirect("/dashboard");
 
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
+  const users = await prisma.user.findMany({
+    where: { shopId: session.shopId },
+    orderBy: { createdAt: "desc" },
+  });
   const counts = {
     admin: users.filter((u) => u.role === "admin").length,
     staff: users.filter((u) => u.role === "staff").length,

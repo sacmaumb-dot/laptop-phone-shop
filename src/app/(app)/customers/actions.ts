@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
+import { requireShopSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function createCustomer(data: {
@@ -12,11 +12,12 @@ export async function createCustomer(data: {
   note?: string;
 }) {
   try {
-    await requireSession();
-    const count = await prisma.customer.count();
+    const session = await requireShopSession();
+    const count = await prisma.customer.count({ where: { shopId: session.shopId } });
     const code = `KH${String(count + 1).padStart(5, "0")}`;
     await prisma.customer.create({
       data: {
+        shopId: session.shopId,
         code,
         name: data.name,
         phone: data.phone,
@@ -48,7 +49,12 @@ export async function updateCustomer(
   },
 ) {
   try {
-    await requireSession();
+    const session = await requireShopSession();
+    const cust = await prisma.customer.findFirst({
+      where: { id, shopId: session.shopId },
+      select: { id: true },
+    });
+    if (!cust) return { ok: false as const, error: "Khách hàng không tồn tại" };
     await prisma.customer.update({
       where: { id },
       data: {
@@ -74,9 +80,9 @@ export async function updateCustomer(
 
 export async function deleteCustomer(id: string) {
   try {
-    await requireSession();
-    const used = await prisma.customer.findUnique({
-      where: { id },
+    const session = await requireShopSession();
+    const used = await prisma.customer.findFirst({
+      where: { id, shopId: session.shopId },
       include: {
         sales: { select: { id: true }, take: 1 },
         serviceTickets: { select: { id: true }, take: 1 },

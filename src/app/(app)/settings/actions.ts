@@ -2,17 +2,16 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { settingsTag } from "@/lib/settings";
 import { revalidatePath, updateTag } from "next/cache";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 async function requireAdmin() {
   const s = await getSession();
-  if (!s || s.role !== "admin") return null;
-  return s;
+  if (!s || s.role !== "admin" || !s.shopId) return null;
+  return s as typeof s & { shopId: string };
 }
-
-const SETTING_ID = "singleton";
 
 export async function updateSettings(data: {
   shopName: string;
@@ -24,11 +23,10 @@ export async function updateSettings(data: {
   printSize: string;
 }) {
   try {
-    if (!(await requireAdmin())) {
-      return { ok: false as const, error: "Không có quyền" };
-    }
+    const s = await requireAdmin();
+    if (!s) return { ok: false as const, error: "Không có quyền" };
     await prisma.appSetting.upsert({
-      where: { id: SETTING_ID },
+      where: { shopId: s.shopId },
       update: {
         shopName: data.shopName,
         siteTitle: data.siteTitle,
@@ -39,7 +37,7 @@ export async function updateSettings(data: {
         printSize: data.printSize,
       },
       create: {
-        id: SETTING_ID,
+        shopId: s.shopId,
         shopName: data.shopName,
         siteTitle: data.siteTitle,
         shopTagline: data.shopTagline,
@@ -49,7 +47,7 @@ export async function updateSettings(data: {
         printSize: data.printSize,
       },
     });
-    updateTag("app-settings");
+    updateTag(settingsTag(s.shopId));
     revalidatePath("/", "layout");
     return { ok: true as const };
   } catch (e) {
@@ -60,11 +58,10 @@ export async function updateSettings(data: {
 
 export async function uploadAsset(formData: FormData) {
   try {
-    if (!(await requireAdmin())) {
-      return { ok: false as const, error: "Không có quyền" };
-    }
+    const s = await requireAdmin();
+    if (!s) return { ok: false as const, error: "Không có quyền" };
     const file = formData.get("file") as File | null;
-    const kind = formData.get("kind") as string | null; // logo | favicon
+    const kind = formData.get("kind") as string | null;
     if (!file || !kind) {
       return { ok: false as const, error: "Thiếu file" };
     }
@@ -75,7 +72,7 @@ export async function uploadAsset(formData: FormData) {
     const safeExt = ["png", "jpg", "jpeg", "webp", "svg", "ico"].includes(ext)
       ? ext
       : "png";
-    const fileName = `${kind}-${Date.now()}.${safeExt}`;
+    const fileName = `${kind}-${s.shopId}-${Date.now()}.${safeExt}`;
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
     const filePath = path.join(uploadDir, fileName);
@@ -83,14 +80,14 @@ export async function uploadAsset(formData: FormData) {
     await writeFile(filePath, buf);
     const url = `/uploads/${fileName}`;
     await prisma.appSetting.upsert({
-      where: { id: SETTING_ID },
+      where: { shopId: s.shopId },
       update: kind === "favicon" ? { faviconUrl: url } : { logoUrl: url },
       create: {
-        id: SETTING_ID,
+        shopId: s.shopId,
         ...(kind === "favicon" ? { faviconUrl: url } : { logoUrl: url }),
       },
     });
-    updateTag("app-settings");
+    updateTag(settingsTag(s.shopId));
     revalidatePath("/", "layout");
     return { ok: true as const, url };
   } catch (e) {
@@ -101,18 +98,17 @@ export async function uploadAsset(formData: FormData) {
 
 export async function clearAsset(kind: "logo" | "favicon") {
   try {
-    if (!(await requireAdmin())) {
-      return { ok: false as const, error: "Không có quyền" };
-    }
+    const s = await requireAdmin();
+    if (!s) return { ok: false as const, error: "Không có quyền" };
     await prisma.appSetting.upsert({
-      where: { id: SETTING_ID },
+      where: { shopId: s.shopId },
       update: kind === "favicon" ? { faviconUrl: null } : { logoUrl: null },
       create: {
-        id: SETTING_ID,
+        shopId: s.shopId,
         ...(kind === "favicon" ? { faviconUrl: null } : { logoUrl: null }),
       },
     });
-    updateTag("app-settings");
+    updateTag(settingsTag(s.shopId));
     revalidatePath("/", "layout");
     return { ok: true as const };
   } catch (e) {

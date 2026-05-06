@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { getSettings } from "@/lib/settings";
+import { getRequestSettings } from "@/lib/settings";
 import "./globals.css";
 
 const inter = Inter({
@@ -10,11 +10,11 @@ const inter = Inter({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const s = await getSettings();
+  const s = await getRequestSettings();
   return {
     title: s.siteTitle,
     description:
-      "Hệ thống quản lý bán hàng, sửa chữa, dịch vụ cho cửa hàng Laptop và Điện thoại",
+      "MyPOS — phần mềm quản lý bán hàng và sửa chữa cho cửa hàng Laptop & Điện thoại.",
     icons: s.faviconUrl ? { icon: s.faviconUrl } : undefined,
   };
 }

@@ -1,5 +1,6 @@
-// Schema for Laptop & Phone Shop Management
+// Schema for MyPOS - Multi-tenant SaaS for Laptop & Phone Shop Management
 // Modules: Sales (POS), Repair/Service, Inventory, Customers, Users
+// Multi-tenant: each Shop is a tenant. All business data is scoped by shopId.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,12 +13,37 @@ datasource db {
 }
 
 // ============================================
-// SETTINGS / APP CONFIG
+// SHOP (TENANT)
+// ============================================
+model Shop {
+  id           String   @id @default(cuid())
+  subdomain    String   @unique // lowercase slug used for routing (e.g. "shop-abc")
+  name         String
+  ownerEmail   String?
+  status       String   @default("active") // active | trial | suspended | deleted
+  trialEndsAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users          User[]
+  customers      Customer[]
+  categories     Category[]
+  products       Product[]
+  sales          Sale[]
+  serviceTickets ServiceTicket[]
+  stockMovements StockMovement[]
+  notifications  Notification[]
+  setting        AppSetting?
+}
+
+// ============================================
+// SETTINGS / APP CONFIG (per-shop)
 // ============================================
 model AppSetting {
-  id          String   @id @default("singleton")
-  shopName    String   @default("TechShop")
-  siteTitle   String   @default("TechShop - Quản lý cửa hàng Laptop & Điện thoại")
+  shopId      String   @id
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopName    String   @default("MyPOS")
+  siteTitle   String   @default("MyPOS - Quản lý cửa hàng")
   shopTagline String   @default("Laptop & Điện thoại")
   shopAddress String?
   shopPhone   String?
@@ -31,21 +57,27 @@ model AppSetting {
 // ============================================
 // USERS / AUTH
 // ============================================
+// shopId is nullable so we can have a global superadmin (SaaS owner) with no shop.
+// For shop members (admin/staff/technician), shopId is required (enforced at app level).
 model User {
   id        String   @id @default(cuid())
+  shopId    String?
+  shop      Shop?    @relation(fields: [shopId], references: [id], onDelete: Cascade)
   email     String   @unique
   name      String
   password  String
-  role      String   @default("staff") // admin | staff | technician
+  role      String   @default("staff") // superadmin | admin | staff | technician
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sales          Sale[]
-  serviceTickets ServiceTicket[] @relation("CreatedBy")
+  sales           Sale[]
+  serviceTickets  ServiceTicket[] @relation("CreatedBy")
   serviceAssigned ServiceTicket[] @relation("AssignedTo")
-  stockMovements StockMovement[]
-  notifications  Notification[]
+  stockMovements  StockMovement[]
+  notifications   Notification[]
+
+  @@index([shopId])
 }
 
 // ============================================
@@ -53,16 +85,18 @@ model User {
 // ============================================
 model Notification {
   id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   userId    String   // recipient
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String   // ticket_assigned | ticket_status | low_stock | other
   title     String
   body      String?
-  link      String?  // URL to navigate when clicked
+  link      String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  @@index([userId, read, createdAt])
+  @@index([shopId, userId, read, createdAt])
 }
 
 // ============================================
@@ -70,9 +104,11 @@ model Notification {
 // ============================================
 model Customer {
   id        String   @id @default(cuid())
-  code      String   @unique // KH001
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  code      String   // KH001 — unique within shop
   name      String
-  phone     String   @unique
+  phone     String   // unique within shop
   email     String?
   address   String?
   note      String?
@@ -81,6 +117,10 @@ model Customer {
 
   sales          Sale[]
   serviceTickets ServiceTicket[]
+
+  @@unique([shopId, code])
+  @@unique([shopId, phone])
+  @@index([shopId])
 }
 
 // ============================================
@@ -88,23 +128,30 @@ model Customer {
 // ============================================
 model Category {
   id       String    @id @default(cuid())
+  shopId   String
+  shop     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
   name     String
-  slug     String    @unique
+  slug     String
   type     String // laptop | phone | accessory | service
   products Product[]
+
+  @@unique([shopId, slug])
+  @@index([shopId])
 }
 
 model Product {
   id          String   @id @default(cuid())
-  sku         String   @unique
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  sku         String
   name        String
-  brand       String? // Apple, Dell, Samsung...
+  brand       String?
   description String?
   imageUrl    String?
-  price       Float    @default(0) // selling price
+  price       Float    @default(0)
   costPrice   Float    @default(0)
-  stock       Int      @default(0) // running stock count
-  warranty    Int      @default(0) // months
+  stock       Int      @default(0)
+  warranty    Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -115,6 +162,9 @@ model Product {
   saleItems    SaleItem[]
   serviceItems ServiceItem[]
   movements    StockMovement[]
+
+  @@unique([shopId, sku])
+  @@index([shopId])
 }
 
 // ============================================
@@ -122,13 +172,15 @@ model Product {
 // ============================================
 model StockMovement {
   id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   type      String   // in | out | adjust
-  quantity  Int      // delta — positive for in, negative for out, signed for adjust
-  before    Int      // stock before
-  after     Int      // stock after
-  unitCost  Float    @default(0) // for "in" — giá nhập
-  reason    String?  // mua hàng / xuất sửa chữa / kiểm kê thiếu...
-  reference String?  // mã NCC / mã phiếu liên quan
+  quantity  Int
+  before    Int
+  after     Int
+  unitCost  Float    @default(0)
+  reason    String?
+  reference String?
   createdAt DateTime @default(now())
 
   productId String
@@ -137,7 +189,7 @@ model StockMovement {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
-  @@index([productId, createdAt])
+  @@index([shopId, productId, createdAt])
 }
 
 // ============================================
@@ -145,14 +197,16 @@ model StockMovement {
 // ============================================
 model Sale {
   id            String   @id @default(cuid())
-  code          String   @unique // HD20240001
+  shopId        String
+  shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  code          String   // HD20240001 — unique within shop
   subtotal      Float    @default(0)
   discount      Float    @default(0)
   tax           Float    @default(0)
   total         Float    @default(0)
   paid          Float    @default(0)
-  paymentMethod String   @default("cash") // cash | card | transfer | wallet
-  status        String   @default("paid") // paid | pending | cancelled
+  paymentMethod String   @default("cash")
+  status        String   @default("paid")
   note          String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -164,6 +218,9 @@ model Sale {
   user   User   @relation(fields: [userId], references: [id])
 
   items SaleItem[]
+
+  @@unique([shopId, code])
+  @@index([shopId, createdAt])
 }
 
 model SaleItem {
@@ -172,7 +229,7 @@ model SaleItem {
   unitPrice Float
   discount  Float   @default(0)
   subtotal  Float
-  imei      String? // IMEI / serial cho phone/laptop bán ra
+  imei      String?
   note      String?
 
   saleId String
@@ -187,25 +244,27 @@ model SaleItem {
 // ============================================
 model ServiceTicket {
   id            String    @id @default(cuid())
-  code          String    @unique // SC20240001
-  deviceType    String // laptop | phone | tablet | other
-  deviceBrand   String? // Apple, Dell...
-  deviceModel   String? // MacBook Pro 14, iPhone 15...
-  imei          String? // IMEI / serial
-  accessories   String? // pin, sạc, sim... đi kèm
-  appearance    String? // trầy xước, móp...
-  problem       String // Mô tả lỗi từ khách
-  diagnosis     String? // Chẩn đoán của KTV
-  solution      String? // Giải pháp / linh kiện thay
+  shopId        String
+  shop          Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  code          String    // SC20240001 — unique within shop
+  deviceType    String
+  deviceBrand   String?
+  deviceModel   String?
+  imei          String?
+  accessories   String?
+  appearance    String?
+  problem       String
+  diagnosis     String?
+  solution      String?
   estimatedCost Float     @default(0)
   finalCost     Float     @default(0)
-  deposit       Float     @default(0) // cọc
+  deposit       Float     @default(0)
   paid          Float     @default(0)
-  warranty      Int       @default(0) // months on repair
-  paymentMethod String?   // cash | transfer
-  status        String    @default("received") // received | diagnosing | waiting_parts | repairing | completed | delivered | cancelled
+  warranty      Int       @default(0)
+  paymentMethod String?
+  status        String    @default("received")
   receivedAt    DateTime  @default(now())
-  promisedAt    DateTime? // hẹn trả
+  promisedAt    DateTime?
   completedAt   DateTime?
   deliveredAt   DateTime?
   note          String?
@@ -223,11 +282,14 @@ model ServiceTicket {
 
   items   ServiceItem[]
   history ServiceStatusHistory[]
+
+  @@unique([shopId, code])
+  @@index([shopId, status])
 }
 
 model ServiceItem {
   id          String @id @default(cuid())
-  description String // Tên linh kiện / dịch vụ
+  description String
   quantity    Int    @default(1)
   unitPrice   Float
   subtotal    Float

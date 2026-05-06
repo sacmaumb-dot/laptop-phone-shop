@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
+import { requireShopSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { createNotification, notifyAdmins } from "@/lib/notifications";
 
@@ -38,11 +38,19 @@ export async function createServiceTicket(input: {
   note: string | null;
 }) {
   try {
-    const session = await requireSession();
+    const session = await requireShopSession();
+    const shopId = session.shopId;
 
     let customerId: string;
     if ("id" in input.customer) {
-      customerId = input.customer.id;
+      const owned = await prisma.customer.findFirst({
+        where: { id: input.customer.id, shopId },
+        select: { id: true },
+      });
+      if (!owned) {
+        return { ok: false as const, error: "Khách hàng không thuộc cửa hàng này" };
+      }
+      customerId = owned.id;
     } else {
       const phone = input.customer.phone.trim();
       const name = input.customer.name.trim();
@@ -52,17 +60,21 @@ export async function createServiceTicket(input: {
           error: "Vui lòng nhập đầy đủ SĐT và tên khách hàng",
         };
       }
-      const existing = await prisma.customer.findFirst({ where: { phone } });
+      const existing = await prisma.customer.findFirst({ where: { shopId, phone } });
       if (existing) {
         customerId = existing.id;
       } else {
-        const allCust = await prisma.customer.findMany({ select: { code: true } });
+        const allCust = await prisma.customer.findMany({
+          where: { shopId },
+          select: { code: true },
+        });
         const maxCustNum = allCust.reduce((m, c) => {
           const n = parseInt(c.code.replace(/\D/g, "")) || 0;
           return n > m ? n : m;
         }, 0);
         const created = await prisma.customer.create({
           data: {
+            shopId,
             code: `KH${String(maxCustNum + 1).padStart(5, "0")}`,
             name,
             phone,
@@ -72,7 +84,10 @@ export async function createServiceTicket(input: {
       }
     }
 
-    const allTickets = await prisma.serviceTicket.findMany({ select: { code: true } });
+    const allTickets = await prisma.serviceTicket.findMany({
+      where: { shopId },
+      select: { code: true },
+    });
     const maxNum = allTickets.reduce((m, t) => {
       const n = parseInt(t.code.replace(/\D/g, "")) || 0;
       return n > m ? n : m;
@@ -81,6 +96,7 @@ export async function createServiceTicket(input: {
 
     const ticket = await prisma.serviceTicket.create({
       data: {
+        shopId,
         code,
         customerId,
         createdById: session.id,
@@ -124,6 +140,7 @@ export async function createServiceTicket(input: {
       input.device.type;
     if (input.assignedToId && input.assignedToId !== session.id) {
       await createNotification({
+        shopId,
         userId: input.assignedToId,
         type: "ticket_assigned",
         title: `Bạn được giao phiếu ${ticket.code}`,
@@ -132,6 +149,7 @@ export async function createServiceTicket(input: {
       });
     }
     await notifyAdmins({
+      shopId,
       type: "ticket_created",
       title: `Phiếu mới ${ticket.code}`,
       body: `${customer?.name ?? ""} · ${deviceLabel}`,
@@ -153,7 +171,13 @@ export async function updateServiceStatus(
   note: string,
 ) {
   try {
-    const session = await requireSession();
+    const session = await requireShopSession();
+    const shopId = session.shopId;
+    const owned = await prisma.serviceTicket.findFirst({
+      where: { id: ticketId, shopId },
+      select: { id: true },
+    });
+    if (!owned) return { ok: false as const, error: "Phiếu không tồn tại" };
     await prisma.$transaction(async (tx) => {
       const data: {
         status: string;
@@ -184,6 +208,7 @@ export async function updateServiceStatus(
         targets.add(ticket.createdById);
       for (const userId of targets) {
         await createNotification({
+          shopId,
           userId,
           type: "ticket_status",
           title: `${ticket.code} → ${label}`,
@@ -228,13 +253,15 @@ export async function updateServiceTicket(
   },
 ) {
   try {
-    const session = await requireSession();
+    const session = await requireShopSession();
+    const shopId = session.shopId;
     const { customerName, customerPhone, promisedAt, assignedToId, ...rest } =
       data;
-    const before = await prisma.serviceTicket.findUnique({
-      where: { id: ticketId },
+    const before = await prisma.serviceTicket.findFirst({
+      where: { id: ticketId, shopId },
       select: { assignedToId: true, code: true, customer: { select: { name: true } }, deviceBrand: true, deviceModel: true, deviceType: true },
     });
+    if (!before) return { ok: false as const, error: "Phiếu không tồn tại" };
     await prisma.serviceTicket.update({
       where: { id: ticketId },
       data: {
@@ -264,6 +291,7 @@ export async function updateServiceTicket(
         [before.deviceBrand, before.deviceModel].filter(Boolean).join(" ") ||
         before.deviceType;
       await createNotification({
+        shopId,
         userId: assignedToId,
         type: "ticket_assigned",
         title: `Bạn được giao phiếu ${before.code}`,
@@ -306,9 +334,9 @@ export async function addServiceItems(
   items: ReturnItemInput[],
 ) {
   try {
-    await requireSession();
-    const ticket = await prisma.serviceTicket.findUnique({
-      where: { id: ticketId },
+    const session = await requireShopSession();
+    const ticket = await prisma.serviceTicket.findFirst({
+      where: { id: ticketId, shopId: session.shopId },
       select: { id: true, status: true },
     });
     if (!ticket) return { ok: false as const, error: "Phiếu không tồn tại" };
@@ -346,11 +374,14 @@ export async function addServiceItems(
 
 export async function removeServiceItem(itemId: string) {
   try {
-    await requireSession();
+    const session = await requireShopSession();
     const item = await prisma.serviceItem.findUnique({
       where: { id: itemId },
-      include: { ticket: { select: { id: true, status: true } } },
+      include: { ticket: { select: { id: true, status: true, shopId: true } } },
     });
+    if (item && item.ticket.shopId !== session.shopId) {
+      return { ok: false as const, error: "Mục không tồn tại" };
+    }
     if (!item) return { ok: false as const, error: "Mục không tồn tại" };
     if (item.ticket.status === "delivered") {
       return { ok: false as const, error: "Phiếu đã trả máy" };
@@ -384,9 +415,9 @@ export async function deliverService(input: {
   note: string;
 }) {
   try {
-    await requireSession();
-    const ticket = await prisma.serviceTicket.findUnique({
-      where: { id: input.ticketId },
+    const session = await requireShopSession();
+    const ticket = await prisma.serviceTicket.findFirst({
+      where: { id: input.ticketId, shopId: session.shopId },
       include: { items: true },
     });
     if (!ticket) {
@@ -409,7 +440,9 @@ export async function deliverService(input: {
           },
         });
         if (it.productId) {
-          const p = await tx.product.findUnique({ where: { id: it.productId } });
+          const p = await tx.product.findFirst({
+            where: { id: it.productId, shopId: session.shopId },
+          });
           if (p) {
             await tx.product.update({
               where: { id: it.productId },
@@ -460,9 +493,9 @@ export async function deliverService(input: {
 
 export async function getTicketForTab(id: string) {
   try {
-    await requireSession();
-    const ticket = await prisma.serviceTicket.findUnique({
-      where: { id },
+    const session = await requireShopSession();
+    const ticket = await prisma.serviceTicket.findFirst({
+      where: { id, shopId: session.shopId },
       include: {
         customer: true,
         createdBy: true,

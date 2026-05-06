@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
+import { requireShopSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 type Item = {
@@ -21,12 +21,22 @@ export async function createSale(input: {
   note: string;
 }) {
   try {
-    const session = await requireSession();
+    const session = await requireShopSession();
+    const shopId = session.shopId;
     if (input.items.length === 0) {
       return { ok: false as const, error: "Giỏ hàng trống" };
     }
 
     let resolvedCustomerId: string | null = input.customerId || null;
+    if (resolvedCustomerId) {
+      const owned = await prisma.customer.findFirst({
+        where: { id: resolvedCustomerId, shopId },
+        select: { id: true },
+      });
+      if (!owned) {
+        return { ok: false as const, error: "Khách hàng không thuộc cửa hàng này" };
+      }
+    }
     if (!resolvedCustomerId && (!input.newCustomer || !input.newCustomer.phone?.trim() || !input.newCustomer.name?.trim())) {
       return {
         ok: false as const,
@@ -39,17 +49,21 @@ export async function createSale(input: {
       if (!phone) {
         return { ok: false as const, error: "SĐT khách hàng không hợp lệ" };
       }
-      const existing = await prisma.customer.findFirst({ where: { phone } });
+      const existing = await prisma.customer.findFirst({ where: { shopId, phone } });
       if (existing) {
         resolvedCustomerId = existing.id;
       } else {
-        const allCust = await prisma.customer.findMany({ select: { code: true } });
+        const allCust = await prisma.customer.findMany({
+          where: { shopId },
+          select: { code: true },
+        });
         const maxCustNum = allCust.reduce((m, c) => {
           const n = parseInt(c.code.replace(/\D/g, "")) || 0;
           return n > m ? n : m;
         }, 0);
         const created = await prisma.customer.create({
           data: {
+            shopId,
             code: `KH${String(maxCustNum + 1).padStart(5, "0")}`,
             name,
             phone,
@@ -59,10 +73,10 @@ export async function createSale(input: {
       }
     }
 
-    // Validate stock
+    // Validate stock — also verifies products belong to this shop
     const productIds = input.items.map((i) => i.productId);
     const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: { id: { in: productIds }, shopId },
       include: { category: true },
     });
     for (const item of input.items) {
@@ -82,8 +96,10 @@ export async function createSale(input: {
     );
     const total = Math.max(0, subtotal - (input.discount || 0));
 
-    // Generate code
-    const allSales = await prisma.sale.findMany({ select: { code: true } });
+    const allSales = await prisma.sale.findMany({
+      where: { shopId },
+      select: { code: true },
+    });
     const maxNum = allSales.reduce((m, s) => {
       const n = parseInt(s.code.replace(/\D/g, "")) || 0;
       return n > m ? n : m;
@@ -93,6 +109,7 @@ export async function createSale(input: {
     const sale = await prisma.$transaction(async (tx) => {
       const created = await tx.sale.create({
         data: {
+          shopId,
           code,
           subtotal,
           discount: input.discount || 0,
@@ -116,7 +133,6 @@ export async function createSale(input: {
         },
       });
 
-      // Reduce stock for non-service items
       for (const item of input.items) {
         const p = products.find((x) => x.id === item.productId);
         if (p && p.category.type !== "service") {

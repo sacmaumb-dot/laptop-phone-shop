@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import {
@@ -50,10 +51,12 @@ export default async function ServiceDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const { id } = await params;
   const [ticket, technicians, products] = await Promise.all([
-    prisma.serviceTicket.findUnique({
-      where: { id },
+    prisma.serviceTicket.findFirst({
+      where: { id, shopId },
       include: {
         customer: true,
         createdBy: true,
@@ -63,11 +66,11 @@ export default async function ServiceDetailPage({
       },
     }),
     prisma.user.findMany({
-      where: { active: true, role: { in: ["technician", "admin"] } },
+      where: { shopId, active: true, role: { in: ["technician", "admin"] } },
       orderBy: { name: "asc" },
     }),
     prisma.product.findMany({
-      where: { isActive: true },
+      where: { shopId, isActive: true },
       include: { category: true },
       orderBy: { name: "asc" },
     }),

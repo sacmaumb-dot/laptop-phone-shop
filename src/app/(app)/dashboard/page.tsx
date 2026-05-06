@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import {
   Card,
   CardContent,
@@ -31,6 +32,8 @@ import {
 import { RevenueChart } from "@/components/revenue-chart";
 
 export default async function DashboardPage() {
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const now = new Date();
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -48,32 +51,34 @@ export default async function DashboardPage() {
     last30Sales,
   ] = await Promise.all([
     prisma.sale.aggregate({
-      where: { createdAt: { gte: today }, status: "paid" },
+      where: { shopId, createdAt: { gte: today }, status: "paid" },
       _sum: { total: true },
     }),
     prisma.sale.aggregate({
-      where: { createdAt: { gte: startOfMonth }, status: "paid" },
+      where: { shopId, createdAt: { gte: startOfMonth }, status: "paid" },
       _sum: { total: true },
     }),
-    prisma.sale.count({ where: { createdAt: { gte: today } } }),
+    prisma.sale.count({ where: { shopId, createdAt: { gte: today } } }),
     prisma.serviceTicket.count({
       where: {
+        shopId,
         status: { notIn: ["delivered", "cancelled"] },
       },
     }),
     prisma.product.findMany({
-      where: { stock: { lt: 5 }, isActive: true },
+      where: { shopId, stock: { lt: 5 }, isActive: true },
       orderBy: { stock: "asc" },
       take: 5,
     }),
-    prisma.customer.count(),
+    prisma.customer.count({ where: { shopId } }),
     prisma.serviceTicket.findMany({
+      where: { shopId },
       take: 5,
       orderBy: { createdAt: "desc" },
       include: { customer: true },
     }),
     prisma.sale.findMany({
-      where: { createdAt: { gte: last30 }, status: "paid" },
+      where: { shopId, createdAt: { gte: last30 }, status: "paid" },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true, total: true },
     }),

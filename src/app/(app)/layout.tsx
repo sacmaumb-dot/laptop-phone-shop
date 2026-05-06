@@ -12,11 +12,16 @@ export default async function AppLayout({
 }) {
   const user = await getSession();
   if (!user) redirect("/login");
+  if (!user.shopId) {
+    // Superadmin without a shop context — send them to the admin area.
+    redirect("/admin");
+  }
 
-  const settings = await getSettings();
+  const settings = await getSettings(user.shopId);
 
   const tickets = await prisma.serviceTicket.findMany({
     where: {
+      shopId: user.shopId,
       status: { notIn: ["delivered", "cancelled"] },
     },
     orderBy: { createdAt: "desc" },

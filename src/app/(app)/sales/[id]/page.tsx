@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { formatVND, formatDateTime } from "@/lib/format";
 import {
@@ -22,13 +23,14 @@ export default async function SaleDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ size?: string }>;
 }) {
+  const session = await requireShopSession();
   const { id } = await params;
   const sp = await searchParams;
-  const settings = await getSettings();
+  const settings = await getSettings(session.shopId);
   const size = sp.size || settings.printSize || "A4";
 
-  const sale = await prisma.sale.findUnique({
-    where: { id },
+  const sale = await prisma.sale.findFirst({
+    where: { id, shopId: session.shopId },
     include: {
       customer: true,
       user: true,

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -37,9 +38,10 @@ export default async function CustomerDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await requireShopSession();
   const { id } = await params;
-  const customer = await prisma.customer.findUnique({
-    where: { id },
+  const customer = await prisma.customer.findFirst({
+    where: { id, shopId: session.shopId },
     include: {
       sales: {
         orderBy: { createdAt: "desc" },

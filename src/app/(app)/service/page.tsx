@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireShopSession } from "@/lib/auth";
 import type { Prisma } from "@/generated/prisma";
 import {
   Card,
@@ -38,8 +39,10 @@ export default async function ServicePage({
 }: {
   searchParams: Promise<{ status?: string; q?: string }>;
 }) {
+  const session = await requireShopSession();
+  const shopId = session.shopId;
   const sp = await searchParams;
-  const where: Prisma.ServiceTicketWhereInput = {};
+  const where: Prisma.ServiceTicketWhereInput = { shopId };
 
   if (sp.status && sp.status !== "all") {
     where.status = sp.status;
@@ -64,6 +67,7 @@ export default async function ServicePage({
 
   const counts = await prisma.serviceTicket.groupBy({
     by: ["status"],
+    where: { shopId },
     _count: true,
   });
   const countMap: Record<string, number> = {};
