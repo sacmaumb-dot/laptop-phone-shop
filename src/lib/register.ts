@@ -85,14 +85,16 @@ export async function registerShop(input: RegisterInput): Promise<RegisterResult
       },
     });
 
-    // Default service category so new shops can immediately add repairs.
-    await tx.category.create({
-      data: {
-        shopId: shop.id,
-        name: "Dịch vụ sửa chữa",
-        slug: "dich-vu",
-        type: "service",
-      },
+    // Default categories so a new shop can start adding products immediately.
+    // Admins can edit / add / delete categories from the Products page.
+    await tx.category.createMany({
+      data: [
+        { shopId: shop.id, name: "Laptop", slug: "laptop", type: "laptop" },
+        { shopId: shop.id, name: "Điện thoại", slug: "dien-thoai", type: "phone" },
+        { shopId: shop.id, name: "Phụ kiện", slug: "phu-kien", type: "accessory" },
+        { shopId: shop.id, name: "Linh kiện", slug: "linh-kien", type: "accessory" },
+        { shopId: shop.id, name: "Dịch vụ sửa chữa", slug: "dich-vu", type: "service" },
+      ],
     });
 
     const user = await tx.user.create({

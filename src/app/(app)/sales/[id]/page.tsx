@@ -52,6 +52,7 @@ export default async function SaleDetailPage({
         code={sale.code}
         subtitle={formatDateTime(sale.createdAt)}
         settings={settings}
+        headerNote={settings.saleHeaderNote}
       />
 
       <div className="receipt-padding p-5 space-y-4 text-sm">
@@ -86,7 +87,11 @@ export default async function SaleDetailPage({
               <tr className="border-b text-xs text-muted-foreground">
                 <th className="text-left font-medium py-1.5">Sản phẩm</th>
                 <th className="text-right font-medium py-1.5 w-10">SL</th>
-                <th className="text-right font-medium py-1.5 w-24 print-hide-on-thermal">
+                <th
+                  className={`text-right font-medium py-1.5 w-24${
+                    settings.saleShowUnitPrice ? "" : " print-hide-on-thermal"
+                  }`}
+                >
                   Đơn giá
                 </th>
                 <th className="text-right font-medium py-1.5 w-28">
@@ -107,7 +112,11 @@ export default async function SaleDetailPage({
                     )}
                   </td>
                   <td className="text-right py-1.5">{item.quantity}</td>
-                  <td className="text-right py-1.5 print-hide-on-thermal">
+                  <td
+                    className={`text-right py-1.5${
+                      settings.saleShowUnitPrice ? "" : " print-hide-on-thermal"
+                    }`}
+                  >
                     {formatVND(item.unitPrice)}
                   </td>
                   <td className="text-right py-1.5 font-medium">
@@ -148,29 +157,33 @@ export default async function SaleDetailPage({
           </div>
         )}
 
-        <div className="text-center text-xs text-muted-foreground italic pt-2 border-t">
-          Cảm ơn quý khách! Hẹn gặp lại.
-        </div>
+        {settings.saleFooterNote && (
+          <div className="text-center text-xs text-muted-foreground italic pt-2 border-t whitespace-pre-line">
+            {settings.saleFooterNote}
+          </div>
+        )}
 
-        <div className="grid grid-cols-2 gap-8 pt-3 print-hide-on-thermal">
-          <div className="text-center">
-            <div className="text-[11px] text-muted-foreground mb-10">
-              Khách hàng
+        {settings.saleShowSignature && (
+          <div className="grid grid-cols-2 gap-8 pt-3 print-hide-on-thermal">
+            <div className="text-center">
+              <div className="text-[11px] text-muted-foreground mb-10">
+                Khách hàng
+              </div>
+              <div className="border-t pt-1 text-[10px] text-muted-foreground">
+                Ký, ghi rõ họ tên
+              </div>
             </div>
-            <div className="border-t pt-1 text-[10px] text-muted-foreground">
-              Ký, ghi rõ họ tên
+            <div className="text-center">
+              <div className="text-[11px] text-muted-foreground mb-1">
+                Nhân viên
+              </div>
+              <div className="text-sm font-medium mb-7">{sale.user.name}</div>
+              <div className="border-t pt-1 text-[10px] text-muted-foreground">
+                Ký xác nhận
+              </div>
             </div>
           </div>
-          <div className="text-center">
-            <div className="text-[11px] text-muted-foreground mb-1">
-              Nhân viên
-            </div>
-            <div className="text-sm font-medium mb-7">{sale.user.name}</div>
-            <div className="border-t pt-1 text-[10px] text-muted-foreground">
-              Ký xác nhận
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </PrintReceiptShell>
   );

@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { ProductFilter } from "./product-filter";
 import { ProductDialog } from "./product-dialog";
 import { ProductActions } from "./product-actions";
+import { CategoryManagerDialog } from "./category-dialog";
 
 const CAT_ICONS: Record<string, React.ReactNode> = {
   phone: <Smartphone className="size-4" />,
@@ -99,6 +100,7 @@ export default async function ProductsPage({
             <Boxes className="size-4" />
             Nhập / Xuất / Kiểm kê
           </Button>
+          <CategoryManagerDialog categories={categories} />
           <ProductDialog categories={categories} />
         </div>
       </div>

@@ -57,11 +57,13 @@ export function ReceiptHeader({
   code,
   subtitle,
   settings,
+  headerNote,
 }: {
   title: string;
   code: string;
   subtitle?: string;
   settings: AppSettings;
+  headerNote?: string | null;
 }) {
   return (
     <div className="receipt-padding border-b p-5">
@@ -90,6 +92,11 @@ export function ReceiptHeader({
               <div className="text-[11px] text-muted-foreground leading-tight">
                 ĐT: {settings.shopPhone}
                 {settings.shopEmail ? ` · ${settings.shopEmail}` : ""}
+              </div>
+            )}
+            {headerNote && (
+              <div className="text-[11px] text-muted-foreground leading-tight whitespace-pre-line mt-0.5">
+                {headerNote}
               </div>
             )}
           </div>

@@ -1,6 +1,13 @@
 import { prisma } from "./prisma";
 import { unstable_cache } from "next/cache";
 import { getShopFromSubdomain } from "./tenant";
+import {
+  DEFAULT_PRINT_TEMPLATES,
+  type PrintTemplates,
+} from "./print-templates-defaults";
+
+export { DEFAULT_PRINT_TEMPLATES };
+export type { PrintTemplates };
 
 export type AppSettings = {
   shopName: string;
@@ -12,7 +19,7 @@ export type AppSettings = {
   logoUrl: string | null;
   faviconUrl: string | null;
   printSize: string; // "A4" | "80mm"
-};
+} & PrintTemplates;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   shopName: "MyPOS",
@@ -24,6 +31,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   logoUrl: null,
   faviconUrl: null,
   printSize: "A4",
+  ...DEFAULT_PRINT_TEMPLATES,
 };
 
 async function loadSettingsRaw(shopId: string): Promise<AppSettings> {
@@ -39,6 +47,19 @@ async function loadSettingsRaw(shopId: string): Promise<AppSettings> {
     logoUrl: s.logoUrl,
     faviconUrl: s.faviconUrl,
     printSize: s.printSize,
+    saleHeaderNote: s.saleHeaderNote,
+    saleFooterNote: s.saleFooterNote ?? DEFAULT_PRINT_TEMPLATES.saleFooterNote,
+    saleShowSignature: s.saleShowSignature,
+    saleShowUnitPrice: s.saleShowUnitPrice,
+    intakeHeaderNote: s.intakeHeaderNote,
+    intakeTerms: s.intakeTerms ?? DEFAULT_PRINT_TEMPLATES.intakeTerms,
+    intakeFooterNote: s.intakeFooterNote,
+    intakeShowSignature: s.intakeShowSignature,
+    returnHeaderNote: s.returnHeaderNote,
+    returnTerms: s.returnTerms ?? DEFAULT_PRINT_TEMPLATES.returnTerms,
+    returnFooterNote: s.returnFooterNote,
+    returnShowSignature: s.returnShowSignature,
+    returnWarrantyNote: s.returnWarrantyNote ?? DEFAULT_PRINT_TEMPLATES.returnWarrantyNote,
   };
 }
 
