@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/login"];
+// Marketing / public routes that do not require auth.
+// Anything not listed here will be redirected to /login when no session.
+const PUBLIC_PATHS = ["/login", "/api/login", "/register"];
+const PUBLIC_EXACT = new Set(["/"]);
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const session = req.cookies.get("shop_session")?.value;
 
   // Allow public paths
-  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+  if (
+    PUBLIC_EXACT.has(pathname) ||
+    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  ) {
     if (pathname === "/login" && session) {
       return NextResponse.redirect(new URL("/pos", req.url));
     }
