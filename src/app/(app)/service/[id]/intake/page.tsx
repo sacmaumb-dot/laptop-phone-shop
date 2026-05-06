@@ -53,6 +53,7 @@ export default async function ServiceIntakePrintPage({
           code={ticket.code}
           subtitle={`Tiếp nhận: ${formatDateTime(ticket.receivedAt)}`}
           settings={settings}
+          headerNote={settings.intakeHeaderNote}
         />
 
         <div className="receipt-padding p-5 space-y-4 text-sm">
@@ -151,42 +152,41 @@ export default async function ServiceIntakePrintPage({
             </div>
           )}
 
-          <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
-            <div>
-              • Cửa hàng chỉ giữ máy theo nội dung mô tả ở phiếu này. Khách
-              hàng vui lòng giữ phiếu để nhận lại máy.
+          {settings.intakeTerms && (
+            <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground whitespace-pre-line">
+              {settings.intakeTerms}
             </div>
-            <div>
-              • Báo giá có thể thay đổi sau khi kiểm tra chi tiết, cửa hàng sẽ
-              thông báo trước khi tiến hành sửa.
-            </div>
-            <div>
-              • Mọi phát sinh hư hỏng do người dùng tự ý mở máy/sửa chữa nơi
-              khác trước đó, cửa hàng không chịu trách nhiệm.
-            </div>
-          </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-8 pt-4">
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground mb-12">
-                Khách hàng
+          {settings.intakeFooterNote && (
+            <div className="text-center text-xs text-muted-foreground italic whitespace-pre-line">
+              {settings.intakeFooterNote}
+            </div>
+          )}
+
+          {settings.intakeShowSignature && (
+            <div className="grid grid-cols-2 gap-8 pt-4 print-hide-on-thermal">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground mb-12">
+                  Khách hàng
+                </div>
+                <div className="border-t pt-1 text-xs text-muted-foreground">
+                  Ký, ghi rõ họ tên
+                </div>
               </div>
-              <div className="border-t pt-1 text-xs text-muted-foreground">
-                Ký, ghi rõ họ tên
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground mb-1">
+                  Nhân viên tiếp nhận
+                </div>
+                <div className="text-sm font-medium mb-9">
+                  {ticket.createdBy.name}
+                </div>
+                <div className="border-t pt-1 text-xs text-muted-foreground">
+                  Ký xác nhận
+                </div>
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground mb-1">
-                Nhân viên tiếp nhận
-              </div>
-              <div className="text-sm font-medium mb-9">
-                {ticket.createdBy.name}
-              </div>
-              <div className="border-t pt-1 text-xs text-muted-foreground">
-                Ký xác nhận
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </PrintReceiptShell>
     </Suspense>

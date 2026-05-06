@@ -93,6 +93,7 @@ async function main() {
     { name: "Laptop", slug: "laptop", type: "laptop" },
     { name: "Điện thoại", slug: "dien-thoai", type: "phone" },
     { name: "Phụ kiện", slug: "phu-kien", type: "accessory" },
+    { name: "Linh kiện", slug: "linh-kien", type: "accessory" },
     { name: "Dịch vụ sửa chữa", slug: "dich-vu", type: "service" },
   ];
   const catMap: Record<string, string> = {};

@@ -51,6 +51,28 @@ model AppSetting {
   logoUrl     String?
   faviconUrl  String?
   printSize   String   @default("A4") // A4 | 80mm
+
+  // ----- Print template customization (per-shop) -----
+  // Sales / invoice
+  saleHeaderNote      String?  // optional extra line under shop info on sale receipt header
+  saleFooterNote      String?  // bottom thank-you / message; default "Cảm ơn quý khách! Hẹn gặp lại."
+  saleShowSignature   Boolean  @default(true)  // show buyer/seller signature blocks (A4 only)
+  saleShowUnitPrice   Boolean  @default(true)  // show unit-price column on thermal too
+
+  // Service intake (phiếu nhận máy)
+  intakeHeaderNote String?
+  intakeTerms      String?   // bullet list-style terms at bottom (one per line)
+  intakeFooterNote String?
+  intakeShowSignature Boolean @default(true)
+
+  // Service return (phiếu trả máy)
+  returnHeaderNote String?
+  returnTerms      String?
+  returnFooterNote String?
+  returnShowSignature Boolean @default(true)
+  // Warranty period to show on return receipt (e.g. "Bảo hành dịch vụ 30 ngày").
+  returnWarrantyNote String?
+
   updatedAt   DateTime @updatedAt
 }
 

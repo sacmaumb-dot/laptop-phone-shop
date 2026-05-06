@@ -65,6 +65,7 @@ export default async function ServiceReturnPrintPage({
               : undefined
           }
           settings={settings}
+          headerNote={settings.returnHeaderNote}
         />
 
         <div className="receipt-padding p-5 space-y-4 text-sm">
@@ -173,27 +174,47 @@ export default async function ServiceReturnPrintPage({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-8 pt-4">
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground mb-12">
-                Khách hàng nhận máy
+          {settings.returnWarrantyNote && (
+            <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground whitespace-pre-line">
+              {settings.returnWarrantyNote}
+            </div>
+          )}
+
+          {settings.returnTerms && (
+            <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground whitespace-pre-line">
+              {settings.returnTerms}
+            </div>
+          )}
+
+          {settings.returnFooterNote && (
+            <div className="text-center text-xs text-muted-foreground italic whitespace-pre-line">
+              {settings.returnFooterNote}
+            </div>
+          )}
+
+          {settings.returnShowSignature && (
+            <div className="grid grid-cols-2 gap-8 pt-4 print-hide-on-thermal">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground mb-12">
+                  Khách hàng nhận máy
+                </div>
+                <div className="border-t pt-1 text-xs text-muted-foreground">
+                  Ký, ghi rõ họ tên
+                </div>
               </div>
-              <div className="border-t pt-1 text-xs text-muted-foreground">
-                Ký, ghi rõ họ tên
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground mb-1">
+                  Nhân viên trả máy
+                </div>
+                <div className="text-sm font-medium mb-9">
+                  {ticket.createdBy.name}
+                </div>
+                <div className="border-t pt-1 text-xs text-muted-foreground">
+                  Ký xác nhận
+                </div>
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground mb-1">
-                Nhân viên trả máy
-              </div>
-              <div className="text-sm font-medium mb-9">
-                {ticket.createdBy.name}
-              </div>
-              <div className="border-t pt-1 text-xs text-muted-foreground">
-                Ký xác nhận
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </PrintReceiptShell>
     </Suspense>

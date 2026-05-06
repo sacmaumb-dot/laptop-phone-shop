@@ -56,6 +56,57 @@ export async function updateSettings(data: {
   }
 }
 
+export type PrintTemplatesInput = {
+  saleHeaderNote: string;
+  saleFooterNote: string;
+  saleShowSignature: boolean;
+  saleShowUnitPrice: boolean;
+
+  intakeHeaderNote: string;
+  intakeTerms: string;
+  intakeFooterNote: string;
+  intakeShowSignature: boolean;
+
+  returnHeaderNote: string;
+  returnTerms: string;
+  returnFooterNote: string;
+  returnShowSignature: boolean;
+  returnWarrantyNote: string;
+};
+
+export async function updatePrintTemplates(data: PrintTemplatesInput) {
+  try {
+    const s = await requireAdmin();
+    if (!s) return { ok: false as const, error: "Không có quyền" };
+    const payload = {
+      saleHeaderNote: data.saleHeaderNote.trim() || null,
+      saleFooterNote: data.saleFooterNote.trim() || null,
+      saleShowSignature: data.saleShowSignature,
+      saleShowUnitPrice: data.saleShowUnitPrice,
+      intakeHeaderNote: data.intakeHeaderNote.trim() || null,
+      intakeTerms: data.intakeTerms.trim() || null,
+      intakeFooterNote: data.intakeFooterNote.trim() || null,
+      intakeShowSignature: data.intakeShowSignature,
+      returnHeaderNote: data.returnHeaderNote.trim() || null,
+      returnTerms: data.returnTerms.trim() || null,
+      returnFooterNote: data.returnFooterNote.trim() || null,
+      returnShowSignature: data.returnShowSignature,
+      returnWarrantyNote: data.returnWarrantyNote.trim() || null,
+    };
+    await prisma.appSetting.upsert({
+      where: { shopId: s.shopId },
+      update: payload,
+      create: { shopId: s.shopId, ...payload },
+    });
+    updateTag(settingsTag(s.shopId));
+    revalidatePath("/", "layout");
+    return { ok: true as const };
+  } catch (e) {
+    console.error(e);
+    return { ok: false as const, error: "Có lỗi xảy ra" };
+  }
+}
+
 export async function uploadAsset(formData: FormData) {
   try {
     const s = await requireAdmin();
